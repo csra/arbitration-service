@@ -12,7 +12,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import rsb.InitializeException;
-import rst.communicationpatterns.TaskStateType;
 import rst.communicationpatterns.TaskStateType.TaskState.State;
 import static rst.communicationpatterns.TaskStateType.TaskState.State.ACCEPTED;
 import static rst.communicationpatterns.TaskStateType.TaskState.State.REJECTED;
@@ -22,7 +21,7 @@ import static rst.communicationpatterns.TaskStateType.TaskState.State.REJECTED;
  * @author Patrick Holthaus
  * (<a href=mailto:patrick.holthaus@uni-bielefeld.de>patrick.holthaus@uni-bielefeld.de</a>)
  */
-public abstract class MapTaskHandler<K, V> extends TaskHandler<String> {
+public abstract class MapTaskHandler<K, V, R> extends TaskHandler<String, R> {
 
 	private Map<K, V> cfg = new HashMap<>();
 
@@ -35,12 +34,12 @@ public abstract class MapTaskHandler<K, V> extends TaskHandler<String> {
 
 	private final static Logger log = Logger.getLogger(MapTaskHandler.class.getName());
 
-	public MapTaskHandler(String scope, String ignore, StringParser<K> k, StringParser<V> p) throws InitializeException {
-		this(scope, ignore, "%", ":", ";", k, p);
+	public MapTaskHandler(String scope, String ignore, StringParser<K> k, StringParser<V> p, Class<R> r) throws InitializeException {
+		this(scope, ignore, "%", ":", ";", k, p, r);
 	}
 	
-	public MapTaskHandler(String scope, String ignore, String partSep, String keySep, String valSep, StringParser<K> k, StringParser<V> p) throws InitializeException {
-		super(scope, String.class);
+	public MapTaskHandler(String scope, String ignore, String partSep, String keySep, String valSep, StringParser<K> k, StringParser<V> p, Class<R> ret) throws InitializeException {
+		super(scope, String.class, ret);
 		this.valuep = p;
 		this.keyp = k;
 		this.ignore = ignore;
@@ -51,7 +50,6 @@ public abstract class MapTaskHandler<K, V> extends TaskHandler<String> {
 
 	@Override
 	public State initializeTask(String payload) {
-		System.out.println(payload);
 		try {
 			Map<String, String> stringcfg = parsePayload(payload);
 			this.cfg = parseConfiguration(stringcfg);
@@ -63,11 +61,11 @@ public abstract class MapTaskHandler<K, V> extends TaskHandler<String> {
 	}
 	
 	@Override
-	public TaskStateType.TaskState.State handleTask(String payload) {
+	public R handleTask(String payload) {
 		return handleTask(this.cfg);
 	}
 
-	public abstract TaskStateType.TaskState.State handleTask(Map<K, V> cfg);
+	public abstract R handleTask(Map<K, V> cfg);
 
 	private Map<String, String> parsePayload(String payload) {
 		Map<String, String> stringcfg = new HashMap<>();

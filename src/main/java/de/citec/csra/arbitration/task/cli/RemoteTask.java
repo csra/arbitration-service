@@ -35,7 +35,7 @@ import static rst.communicationpatterns.TaskStateType.TaskState.State.INITIATED;
  * @author Patrick Holthaus
  * (<a href=mailto:patrick.holthaus@uni-bielefeld.de>patrick.holthaus@uni-bielefeld.de</a>)
  */
-public class RemoteTask<T, V> implements Callable<State> {
+public class RemoteTask<T, V> implements Callable<V> {
 
 	static {
 		DefaultConverterRepository.getDefaultConverterRepository().addConverter(new ProtocolBufferConverter<>(TaskState.getDefaultInstance()));
@@ -82,7 +82,7 @@ public class RemoteTask<T, V> implements Callable<State> {
 	}
 
 	@Override
-	public State call() throws RSBException, InterruptedException {
+	public V call() throws RSBException, InterruptedException {
 
 		activate();
 		State initResult = initializeTask(init);
@@ -95,17 +95,21 @@ public class RemoteTask<T, V> implements Callable<State> {
 					switch (taskResult) {
 						case RESULT_AVAILABLE:
 						case UPDATE:
-							update = true;
 							break;
 						default:
 						case ABORTED:
 						case FAILED:
 						case ABORT_FAILED:
 						case REJECTED:
+							deactivate();
+							return null;
 						case COMPLETED:
-							update = false;
-							return taskResult;
+							deactivate();
+							return getResult();
 					}
+				} else {
+					deactivate();
+					return null;
 				}
 			}
 		}
