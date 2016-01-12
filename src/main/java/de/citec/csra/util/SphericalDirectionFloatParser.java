@@ -22,8 +22,8 @@ public class SphericalDirectionFloatParser implements StringParser<SphericalDire
 		}
 		
 		SphericalDirectionFloat angle = SphericalDirectionFloat.newBuilder().
-				setElevation(Float.valueOf(pt[0])).
-				setAzimuth(Float.valueOf(pt[1])).build();
+				setAzimuth(Float.valueOf(pt[0])).
+				setElevation(Float.valueOf(pt[1])).build();
 		
 		return angle;
 	}
