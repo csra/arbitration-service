@@ -28,4 +28,9 @@ public class ColorParser implements StringParser<HSVColor> {
 		
 		return color;
 	}
+
+	@Override
+	public Class<HSVColor> getTargetClass() {
+		return HSVColor.class;
+	}
 }

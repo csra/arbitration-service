@@ -27,5 +27,10 @@ public class SphericalDirectionFloatParser implements StringParser<SphericalDire
 		
 		return angle;
 	}
+
+	@Override
+	public Class<SphericalDirectionFloat> getTargetClass() {
+		return SphericalDirectionFloat.class;
+	}
 	
 }

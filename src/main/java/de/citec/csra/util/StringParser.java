@@ -12,6 +12,7 @@ package de.citec.csra.util;
  */
 public interface StringParser<T> {
 	
+	public Class<T> getTargetClass();
 	public T getValue(String tgt) throws IllegalArgumentException;
 	
 }

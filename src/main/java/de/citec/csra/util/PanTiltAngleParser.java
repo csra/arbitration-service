@@ -27,4 +27,9 @@ public class PanTiltAngleParser implements StringParser<PanTiltAngle> {
 		
 		return angle;
 	}
+
+	@Override
+	public Class<PanTiltAngle> getTargetClass() {
+		return PanTiltAngle.class;
+	}
 }

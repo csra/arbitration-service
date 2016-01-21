@@ -33,4 +33,9 @@ public class HighlightTargetParser implements StringParser<HighlightTarget> {
 		return bld.build();
 	}
 
+	@Override
+	public Class<HighlightTarget> getTargetClass() {
+		return HighlightTarget.class;
+	}
+
 }

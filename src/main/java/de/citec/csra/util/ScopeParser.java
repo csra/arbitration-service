@@ -23,4 +23,9 @@ public class ScopeParser implements StringParser<Scope> {
 			throw new IllegalArgumentException("invalid scope.", ex);
 		}
 	}
+
+	@Override
+	public Class<Scope> getTargetClass() {
+		return Scope.class;
+	}
 }

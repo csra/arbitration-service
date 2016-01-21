@@ -27,4 +27,9 @@ public class EnumParser<T extends Enum<T>> implements StringParser<T> {
 		}
 		throw new IllegalArgumentException("No enum constant " + cls.getCanonicalName() + "." + val);
 	}
+
+	@Override
+	public Class<T> getTargetClass() {
+		return this.cls;
+	}
 }

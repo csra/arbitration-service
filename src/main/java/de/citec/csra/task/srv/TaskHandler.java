@@ -7,6 +7,7 @@ package de.citec.csra.task.srv;
 
 import com.google.protobuf.ByteString;
 import de.citec.csra.task.SerializationService;
+import de.citec.csra.util.StringParser;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import rsb.Event;
@@ -18,6 +19,7 @@ import rsb.Listener;
 import rsb.RSBException;
 import rsb.converter.DefaultConverterRepository;
 import rsb.converter.ProtocolBufferConverter;
+import rsb.filter.OriginFilter;
 import rst.communicationpatterns.TaskStateType.TaskState;
 import static rst.communicationpatterns.TaskStateType.TaskState.Origin.HANDLER;
 import static rst.communicationpatterns.TaskStateType.TaskState.Origin.SUBMITTER;
@@ -45,13 +47,20 @@ public abstract class TaskHandler<T, V> implements Handler {
 	private final Class<T> inCls;
 	private final SerializationService<T> inSerial;
 	private final SerializationService<V> outSerial;
+	private StringParser<T> parser;
 
-	public TaskHandler(String scope, Class<T> cls, Class<V> res) throws InitializeException {
+	TaskHandler(String scope, Class<T> cls, Class<V> res) throws InitializeException {
 		this.informer = Factory.getInstance().createInformer(scope);
 		this.listener = Factory.getInstance().createListener(scope);
+		this.listener.addFilter(new OriginFilter(this.informer.getId(), true));
 		this.inCls = cls;
 		this.inSerial = new SerializationService<>(cls);
 		this.outSerial = new SerializationService<>(res);
+	}
+
+	public TaskHandler(String scope, Class<T> cls, Class<V> res, StringParser<T> p) throws InitializeException {
+		this(scope, cls, res);
+		this.parser = p;
 	}
 
 	public void activate() throws RSBException, InterruptedException {
@@ -95,6 +104,19 @@ public abstract class TaskHandler<T, V> implements Handler {
 			}
 		} else if (inCls.isInstance(event.getData())) {
 			T payload = (T) event.getData();
+			State init = initializeTask(payload);
+			if (init != REJECTED) {
+				try {
+					V result = handleTask(payload);
+					send(result);
+				} catch (Exception e) {
+					send(e);
+				}
+			}
+		} else if (parser != null
+				&& event.getData() instanceof String
+				&& parser.getTargetClass().isInstance(event.getData())) {
+			T payload = parser.getValue((String) event.getData());
 			State init = initializeTask(payload);
 			if (init != REJECTED) {
 				try {
