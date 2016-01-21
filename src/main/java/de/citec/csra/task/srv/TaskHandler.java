@@ -49,7 +49,7 @@ public abstract class TaskHandler<T, V> implements Handler {
 	private final SerializationService<V> outSerial;
 	private StringParser<T> parser;
 
-	TaskHandler(String scope, Class<T> cls, Class<V> res) throws InitializeException {
+	public TaskHandler(String scope, Class<T> cls, Class<V> res) throws InitializeException {
 		this.informer = Factory.getInstance().createInformer(scope);
 		this.listener = Factory.getInstance().createListener(scope);
 		this.listener.addFilter(new OriginFilter(this.informer.getId(), true));
