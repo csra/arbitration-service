@@ -82,8 +82,14 @@ public abstract class TaskHandler<T, V> implements Handler {
 
 //			only regard foreign task states that are initiated and not empty
 			if (t.getOrigin().equals(SUBMITTER)) {
-				LOG.log(Level.FINE, "Received task: ''{0}''", t.toString().replaceAll("\n", " "));
 				T payload = inSerial.deserialize(t.getPayload());
+				LOG.log(Level.FINE, "Received task: state: ''{0}'', serial: ''{1}'', wire-schema: ''{2}'', payload: ''{3}''",
+						new Object[]{
+							t.getState(),
+							t.getSerial(),
+							t.getWireSchema().toStringUtf8(),
+							payload.toString().replaceAll("\n", " ")
+						});
 				if (t.getState().equals(INITIATED)) {
 
 					State init = initializeTask(payload);
