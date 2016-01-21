@@ -82,6 +82,7 @@ public abstract class TaskHandler<T, V> implements Handler {
 
 //			only regard foreign task states that are initiated and not empty
 			if (t.getOrigin().equals(SUBMITTER)) {
+				LOG.log(Level.FINE, "Received task: ''{0}''", t.toString().replaceAll("\n", " "));
 				T payload = inSerial.deserialize(t.getPayload());
 				if (t.getState().equals(INITIATED)) {
 
@@ -92,7 +93,7 @@ public abstract class TaskHandler<T, V> implements Handler {
 							V result = handleTask(payload);
 							updateTask(t, COMPLETED, result);
 						} catch (Exception ex) {
-							LOG.log(Level.SEVERE, "Exception during task handling", ex);
+							LOG.log(Level.WARNING, "Exception during task handling", ex);
 							updateTask(t, FAILED);
 						}
 					}
@@ -102,29 +103,32 @@ public abstract class TaskHandler<T, V> implements Handler {
 					updateTask(t, abort);
 				}
 			}
-		} else if (inCls.isInstance(event.getData())) {
-			T payload = (T) event.getData();
-			State init = initializeTask(payload);
-			if (init != REJECTED) {
+		} else {
+			T input = null;
+			if (inCls.isInstance(event.getData())) {
+				input = (T) event.getData();
+				LOG.log(Level.FINE, "Received raw data instead of task: ''{0}''", input.toString().replaceAll("\n", " "));
+			} else if (parser != null && event.getData() instanceof String) {
 				try {
-					V result = handleTask(payload);
-					send(result);
-				} catch (Exception e) {
-					send(e);
+					input = parser.getValue((String) event.getData());
+					LOG.log(Level.FINE, "Received string representation instead of task: ''{0}''", input.toString().replaceAll("\n", " "));
+				} catch (IllegalArgumentException ex) {
+					LOG.log(Level.FINE, "String representation ''{0}'' could not be parsed: ''{1}''", new Object[]{((String) event.getData()).replaceAll("\n", " "), ex});
 				}
 			}
-		} else if (parser != null
-				&& event.getData() instanceof String
-				&& parser.getTargetClass().isInstance(event.getData())) {
-			T payload = parser.getValue((String) event.getData());
-			State init = initializeTask(payload);
-			if (init != REJECTED) {
-				try {
-					V result = handleTask(payload);
-					send(result);
-				} catch (Exception e) {
-					send(e);
+
+			if (input != null) {
+				State init = initializeTask(input);
+				if (init != REJECTED) {
+					try {
+						V result = handleTask(input);
+						respond(result);
+					} catch (Exception e) {
+						respond(e.getLocalizedMessage());
+					}
 				}
+			} else {
+				LOG.log(Level.FINE, "Received invalid input, ignoring: ''{0}''", event.getData().toString().replaceAll("\n", " "));
 			}
 		}
 	}
@@ -138,11 +142,16 @@ public abstract class TaskHandler<T, V> implements Handler {
 		return ABORTED;
 	}
 
+	private void respond(Object t) {
+		LOG.log(Level.INFO, "Responding with ''{0}''", t);
+		send(t);
+	}
+
 	private void send(Object t) {
 		try {
 			this.informer.send(t);
 		} catch (RSBException ex) {
-			LOG.log(Level.SEVERE, "Exception during update", ex);
+			LOG.log(Level.SEVERE, "Exception while sending message via rsb", ex);
 		}
 	}
 
