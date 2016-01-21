@@ -5,8 +5,6 @@
  */
 package de.citec.csra.util;
 
-import rsb.InitializeException;
-
 /**
  *
  * @author Patrick Holthaus
@@ -16,12 +14,17 @@ public class EnumParser<T extends Enum<T>> implements StringParser<T> {
 
 	private final Class<T> cls;
 	
-	public EnumParser(Class<T> cls) throws InitializeException {
+	public EnumParser(Class<T> cls) {
 		this.cls = cls;
 	}
 
 	@Override
 	public T getValue(String val) throws IllegalArgumentException {
-		return Enum.valueOf(cls, val);
+		for(T e : cls.getEnumConstants()){
+			if(e.name().equalsIgnoreCase(val)){
+				return e;
+			}
+		}
+		throw new IllegalArgumentException("No enum constant " + cls.getCanonicalName() + "." + val);
 	}
 }
