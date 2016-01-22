@@ -20,9 +20,9 @@ import rsb.RSBException;
 public class TaskServer {
 
 	private final static Logger LOG = Logger.getLogger(TaskServer.class.getName());
-	private final List<TaskHandler> handlers;
+	private final List<RSBTaskHandler> handlers;
 
-	public TaskServer(TaskHandler... handlers) throws InitializeException {
+	public TaskServer(RSBTaskHandler... handlers) throws InitializeException {
 		this.handlers = Arrays.asList(handlers);
 	}
 
@@ -37,14 +37,14 @@ public class TaskServer {
 	}
 
 	public void activate() throws RSBException, InterruptedException {
-		for(TaskHandler h : this.handlers){
+		for(RSBTaskHandler h : this.handlers){
 			h.activate();
 		}
 		LOG.log(Level.INFO, "RSB Communication activated.");
 	}
 
 	public void deactivate() throws RSBException, InterruptedException {
-		for(TaskHandler h : this.handlers){
+		for(RSBTaskHandler h : this.handlers){
 			h.deactivate();
 		}
 		LOG.log(Level.INFO, "RSB Communication deactivated.");

@@ -14,7 +14,6 @@ import rst.communicationpatterns.TaskStateType.TaskState;
 import static rst.communicationpatterns.TaskStateType.TaskState.Origin.SUBMITTER;
 import rst.communicationpatterns.TaskStateType.TaskState.State;
 import static rst.communicationpatterns.TaskStateType.TaskState.State.ABORT;
-import static rst.communicationpatterns.TaskStateType.TaskState.State.COMPLETED;
 import static rst.communicationpatterns.TaskStateType.TaskState.State.FAILED;
 import static rst.communicationpatterns.TaskStateType.TaskState.State.INITIATED;
 import static rst.communicationpatterns.TaskStateType.TaskState.State.REJECTED;
@@ -24,15 +23,16 @@ import static rst.communicationpatterns.TaskStateType.TaskState.State.REJECTED;
  * @author Patrick Holthaus
  * (<a href=mailto:patrick.holthaus@uni-bielefeld.de>patrick.holthaus@uni-bielefeld.de</a>)
  */
-public abstract class TaskHandler<T, V> extends AbstractTaskHandler<T, V> {
+public abstract class AsyncTaskHandler<T, V> extends AbstractTaskHandler<T, V> {
 
-	private final static Logger LOG = Logger.getLogger(TaskHandler.class.getName());
+	private final static Logger LOG = Logger.getLogger(AsyncTaskHandler.class.getName());
 
-	public TaskHandler(String scope, Class<T> cls, Class<V> res) throws InitializeException {
+
+	public AsyncTaskHandler(String scope, Class<T> cls, Class<V> res) throws InitializeException {
 		super(scope, cls, res);
 	}
 
-	public TaskHandler(String scope, Class<T> cls, Class<V> res, StringParser<T> p) throws InitializeException {
+	public AsyncTaskHandler(String scope, Class<T> cls, Class<V> res, StringParser<T> p) throws InitializeException {
 		super(scope, cls, res, p);
 	}
 
@@ -53,12 +53,11 @@ public abstract class TaskHandler<T, V> extends AbstractTaskHandler<T, V> {
 						});
 				if (t.getState().equals(INITIATED)) {
 
-					State init = initializeTask(payload);
+					State init = initializeTask(t, payload);
 					updateTask(t, init);
 					if (init != REJECTED) {
 						try {
-							V result = handleTask(payload);
-							updateTask(t, COMPLETED, result);
+							executeTask();
 						} catch (Exception ex) {
 							LOG.log(Level.WARNING, "Exception during task handling", ex);
 							updateTask(t, FAILED);
@@ -85,12 +84,12 @@ public abstract class TaskHandler<T, V> extends AbstractTaskHandler<T, V> {
 			}
 
 			if (input != null) {
-				State init = initializeTask(input);
+				State init = initializeTask(null, input);
 				if (init != REJECTED) {
 					try {
-						V result = handleTask(input);
-						respond(result);
+						executeTask();
 					} catch (Exception e) {
+						e.printStackTrace();
 						respond(e.getLocalizedMessage());
 					}
 				}
@@ -100,6 +99,7 @@ public abstract class TaskHandler<T, V> extends AbstractTaskHandler<T, V> {
 		}
 	}
 
-	public abstract State initializeTask(T payload);
-	public abstract V handleTask(T payload) throws Exception;
+	public abstract State initializeTask(TaskState task, T payload);
+	public abstract void executeTask() throws Exception;
+
 }
