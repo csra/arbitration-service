@@ -31,7 +31,7 @@
 		<dependency>
 			<groupId>rsb</groupId>
 			<artifactId>rst-sandbox-csra</artifactId>
-			<version>${rsb.version}</version>
+			<version>[0.13.252,)</version>
 		</dependency>
 	</dependencies>
 </project>

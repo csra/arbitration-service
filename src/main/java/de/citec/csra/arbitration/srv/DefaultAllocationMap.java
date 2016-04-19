@@ -8,9 +8,11 @@ package de.citec.csra.arbitration.srv;
 import rsb.Event;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initiator.SYSTEM;
+import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy.APPEND;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority.NORMAL;
 import rst.communicationpatterns.TaskStateType.TaskState;
-import rst.timing.DurationType;
+import rst.timing.IntervalType;
+import rst.timing.TimestampType;
 
 /**
  *
@@ -28,12 +30,16 @@ public class DefaultAllocationMap {
 	}
 	
 	public ResourceAllocation getRequiredResources(TaskState ts, Event e) {
+		long now = System.currentTimeMillis();
 		ResourceAllocation a = ResourceAllocation.newBuilder().
 				setDescription("example").
-				setDuration(DurationType.Duration.newBuilder().setTime(1000)).
+				setTimeframe(IntervalType.Interval.newBuilder().
+						setBegin(TimestampType.Timestamp.newBuilder().setTime(now)).
+						setEnd(TimestampType.Timestamp.newBuilder().setTime(now + 1000))).
 				setInitiator(SYSTEM).
 				setPriority(NORMAL).
-				addLocationIds("Kitchen").
+				setPolicy(APPEND).
+				addResourceIds("Kitchen").
 				build();
 		return a;
 	}
