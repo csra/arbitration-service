@@ -31,6 +31,7 @@ public class TaskServer {
 			try {
 				Thread.sleep(10);
 			} catch (InterruptedException ex) {
+//				Thread.currentThread().interrupt();
 				LOG.log(Level.SEVERE, "Waiting interrupted", ex);
 			}
 		}

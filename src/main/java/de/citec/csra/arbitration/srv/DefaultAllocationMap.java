@@ -5,11 +5,13 @@
  */
 package de.citec.csra.arbitration.srv;
 
+import java.util.UUID;
 import rsb.Event;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initiator.SYSTEM;
-import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy.APPEND;
+import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy.FIRST;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority.NORMAL;
+import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.REQUESTED;
 import rst.communicationpatterns.TaskStateType.TaskState;
 import rst.timing.IntervalType;
 import rst.timing.TimestampType;
@@ -32,13 +34,15 @@ public class DefaultAllocationMap {
 	public ResourceAllocation getRequiredResources(TaskState ts, Event e) {
 		long now = System.currentTimeMillis();
 		ResourceAllocation a = ResourceAllocation.newBuilder().
+				setId(UUID.randomUUID().toString().substring(0, 8)).
+				setState(REQUESTED).
 				setDescription("example").
-				setTimeframe(IntervalType.Interval.newBuilder().
+				setSlot(IntervalType.Interval.newBuilder().
 						setBegin(TimestampType.Timestamp.newBuilder().setTime(now)).
 						setEnd(TimestampType.Timestamp.newBuilder().setTime(now + 1000))).
 				setInitiator(SYSTEM).
 				setPriority(NORMAL).
-				setPolicy(APPEND).
+				setPolicy(FIRST).
 				addResourceIds("Kitchen").
 				build();
 		return a;
