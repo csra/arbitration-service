@@ -154,29 +154,23 @@ public abstract class Skill implements SchedulerListener, SchedulerController, R
 	}
 
 	private boolean getFuture() throws InterruptedException {
-		if (f != null) {
+		if (f == null || f.isCancelled()) {
+			return false;
+		} else {
 			try {
 				f.get();
 			} catch (ExecutionException ex) {
 				LOG.log(Level.SEVERE, "Execution failed", ex);
 				return false;
 			}
-			return true;
-		} else {
-			return false;
+			return f.isDone();
 		}
-	}
 
-	private boolean inQueue() {
-		return this.allocation.getState().equals(REQUESTED) || this.allocation.getState().equals(SCHEDULED);
 	}
 
 	public boolean await() throws InterruptedException {
-		if (inQueue()) {
-//			long max = System.currentTimeMillis() + 2000 + this.allocation.getSlot().getBegin();
-			while (System.currentTimeMillis() < this.allocation.getSlot().getBegin().getTime() + 2000 && inQueue()) {
-				Thread.sleep(100);
-			}
+		while (isAlive()) {
+			Thread.sleep(100);
 		}
 		return getFuture();
 	}
