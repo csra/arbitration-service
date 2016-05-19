@@ -17,6 +17,8 @@
 package de.citec.csra.allocation;
 
 import de.citec.csra.allocation.srv.AllocationService;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutionException;
@@ -53,7 +55,7 @@ import rst.timing.TimestampType;
  * @author Patrick Holthaus
  * (<a href=mailto:patrick.holthaus@uni-bielefeld.de>patrick.holthaus@uni-bielefeld.de</a>)
  */
-public abstract class Skill implements SchedulerListener, SchedulerController, Runnable {
+public abstract class Skill implements SchedulerController, Runnable {
 
 	static {
 		DefaultConverterRepository.getDefaultConverterRepository()
@@ -75,6 +77,7 @@ public abstract class Skill implements SchedulerListener, SchedulerController, R
 	private ResourceAllocation allocation;
 	private final QueueAdapter qa = new QueueAdapter();
 	private final BlockingQueue<ResourceAllocation> queue = qa.getQueue();
+	private final Set<SchedulerListener> listeners = new HashSet<>();
 
 	public Skill(String description, String resource, Policy policy, Priority priority) throws InitializeException {
 		this.description = description;
@@ -83,6 +86,10 @@ public abstract class Skill implements SchedulerListener, SchedulerController, R
 		this.priority = priority;
 		this.informer = Factory.getInstance().createInformer(AllocationService.SCOPE);
 		this.listener = Factory.getInstance().createListener(AllocationService.SCOPE);
+	}
+
+	public void addSchedulerListener(SchedulerListener l) {
+		this.listeners.add(l);
 	}
 
 	public void activate() throws RSBException, InterruptedException {
@@ -97,21 +104,21 @@ public abstract class Skill implements SchedulerListener, SchedulerController, R
 					if (allocation != null && update.getId().equals(allocation.getId())) {
 						switch (update.getState()) {
 							case SCHEDULED:
-								scheduled(update);
+								remoteScheduled(update);
 								break;
 							case ALLOCATED:
-								allocated(update);
+								remoteAllocated(update);
 								break;
 							case REJECTED:
-								rejected(update, update.getDescription());
+								remoteRejected(update, update.getDescription());
 								break;
 							case CANCELLED:
-								cancelled(update, update.getDescription());
+								remoteCancelled(update, update.getDescription());
 								break;
 							case ABORTED:
-								aborted(update, update.getDescription());
+								remoteAborted(update, update.getDescription());
 							case RELEASED:
-								released(update);
+								remoteReleased(update);
 								break;
 							case REQUESTED:
 								break;
@@ -145,7 +152,7 @@ public abstract class Skill implements SchedulerListener, SchedulerController, R
 				addResourceIds(resources).
 				build();
 
-		System.out.println(this.toString() + " scheduling");
+		LOG.log(Level.FINE, "resource allocation scheduled by client: ''{0}''", allocation);
 		synchronized (informer) {
 			if (this.informer.isActive()) {
 				this.informer.publish(allocation);
@@ -193,84 +200,106 @@ public abstract class Skill implements SchedulerListener, SchedulerController, R
 	@Override
 	public void abort() throws RSBException {
 		if (isAlive()) {
-			System.out.println(this.toString() + " aborting");
 			this.allocation = ResourceAllocation.newBuilder(this.allocation).setState(ABORTED).build();
+			LOG.log(Level.FINE, "resource allocation aborted by client: ''{0}''", allocation);
 			synchronized (informer) {
 				if (this.informer.isActive()) {
 					this.informer.publish(this.allocation);
 				}
 			}
+		} else {
+			LOG.log(Level.FINE, "resource allocation not active anymore ({0}), client aborting skipped: ''{1}''", new Object[]{allocation.getState(), allocation});
 		}
 	}
 
 	@Override
 	public void release() throws RSBException {
 		if (isAlive()) {
-			System.out.println(this.toString() + " releasing");
 			this.allocation = ResourceAllocation.newBuilder(this.allocation).setState(RELEASED).build();
+			LOG.log(Level.FINE, "resource allocation released by client: ''{0}''", allocation);
 			synchronized (informer) {
 				if (this.informer.isActive()) {
 					this.informer.publish(this.allocation);
 				}
 			}
+		} else {
+			LOG.log(Level.FINE, "resource allocation not active anymore ({0}), client releasing skipped: ''{1}''", new Object[]{allocation.getState(), allocation});
 		}
 	}
 
 	@Override
 	public void cancel() throws RSBException {
 		if (isAlive()) {
-			System.out.println(this.toString() + " cancelling");
 			this.allocation = ResourceAllocation.newBuilder(this.allocation).setState(CANCELLED).build();
+			LOG.log(Level.FINE, "resource allocation cancelled by client: ''{0}''", allocation);
 			synchronized (informer) {
 				if (this.informer.isActive()) {
 					this.informer.publish(this.allocation);
 				}
 			}
+		} else {
+			LOG.log(Level.FINE, "resource allocation not active anymore ({0}), client cancelling skipped: ''{1}''", new Object[]{allocation.getState(), allocation});
 		}
 	}
 
-	@Override
-	public void scheduled(ResourceAllocation allocation) {
+	private void remoteScheduled(ResourceAllocation allocation) {
 		this.allocation = allocation;
-		System.out.println(this.toString() + " scheduled as: " + allocation.getId() + ", duration: " + (allocation.getSlot().getEnd().getTime() - allocation.getSlot().getBegin().getTime()));
+		LOG.log(Level.FINE, "resource allocation scheduled by server: ''{0}''", allocation);
+		for (SchedulerListener l : this.listeners) {
+			l.scheduled(allocation);
+		}
 	}
 
-	@Override
-	public void rejected(ResourceAllocation allocation, String cause) {
+	private void remoteRejected(ResourceAllocation allocation, String cause) {
 		this.allocation = allocation;
-		System.out.println(this.toString() + " rejected, shutting down. Reason: " + cause);
+		LOG.log(Level.FINE, "resource allocation rejected by server, shutting down: ''{0}''", allocation);
+		for (SchedulerListener l : this.listeners) {
+			l.rejected(allocation, cause);
+		}
 		shutdown();
 	}
 
-	@Override
-	public void allocated(ResourceAllocation allocation) {
+	private void remoteAllocated(ResourceAllocation allocation) {
 		this.allocation = allocation;
 		if (this.f == null) {
-			System.out.println(this.toString() + " allocated, starting execution");
+			LOG.log(Level.FINE, "resource allocation granted by server, starting execution: ''{0}''", allocation);
+			for (SchedulerListener l : this.listeners) {
+				l.allocated(allocation);
+			}
 			this.f = executor.submit(this);
 		} else {
-			System.out.println(this.toString() + " reallocated, watch out");
+			LOG.log(Level.FINE, "resource allocation altered by server, starting execution: ''{0}''", allocation);
+			for (SchedulerListener l : this.listeners) {
+				l.allocated(allocation);
+			}
 		}
 	}
 
-	@Override
-	public void aborted(ResourceAllocation allocation, String cause) {
+	private void remoteAborted(ResourceAllocation allocation, String cause) {
 		this.allocation = allocation;
-		System.out.println(this.toString() + " aborted, shutting down. Reason: " + cause);
+		LOG.log(Level.FINE, "resource allocation aborted by server, shutting down: ''{0}''", allocation);
+		for (SchedulerListener l : this.listeners) {
+			l.aborted(allocation, cause);
+		}
 		shutdown();
 	}
 
-	@Override
-	public void cancelled(ResourceAllocation allocation, String cause) {
+	
+	private void remoteCancelled(ResourceAllocation allocation, String cause) {
 		this.allocation = allocation;
-		System.out.println(this.toString() + " cancelled, shutting down. Reason: " + cause);
+		LOG.log(Level.FINE, "resource allocation cancelled by server, shutting down: ''{0}''", allocation);
+		for (SchedulerListener l : this.listeners) {
+			l.cancelled(allocation, cause);
+		}
 		shutdown();
 	}
 
-	@Override
-	public void released(ResourceAllocation allocation) {
+	private void remoteReleased(ResourceAllocation allocation) {
 		this.allocation = allocation;
-		System.out.println(this.toString() + " released, shutting down");
+		LOG.log(Level.FINE, "resource allocation released by server, shutting down: ''{0}''", allocation);
+		for (SchedulerListener l : this.listeners) {
+			l.released(allocation);
+		}
 		shutdown();
 	}
 
@@ -324,7 +353,7 @@ public abstract class Skill implements SchedulerListener, SchedulerController, R
 			try {
 				release();
 			} catch (RSBException ex) {
-				LOG.log(Level.SEVERE, "could not release", ex);
+				LOG.log(Level.SEVERE, allocation.getId() + ": could not release", ex);
 			}
 		}
 	}
