@@ -130,7 +130,7 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 	 */
 	private JFreeChart createChart(final XYDataset dataset) {
 		final JFreeChart result = ChartFactory.createTimeSeriesChart(
-				"Resource Allocation Chart",
+				null,
 				"Time",
 				"Resource",
 				dataset,
