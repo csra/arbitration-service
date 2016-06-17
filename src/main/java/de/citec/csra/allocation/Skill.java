@@ -16,7 +16,7 @@
  */
 package de.citec.csra.allocation;
 
-import de.citec.csra.allocation.srv.AllocationService;
+import de.citec.csra.allocation.srv.AllocationServer;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -55,6 +55,7 @@ import rst.timing.TimestampType;
  * @author Patrick Holthaus
  * (<a href=mailto:patrick.holthaus@uni-bielefeld.de>patrick.holthaus@uni-bielefeld.de</a>)
  */
+@Deprecated
 public abstract class Skill implements SchedulerController, Runnable {
 
 	static {
@@ -84,8 +85,8 @@ public abstract class Skill implements SchedulerController, Runnable {
 		this.resources = resource;
 		this.policy = policy;
 		this.priority = priority;
-		this.informer = Factory.getInstance().createInformer(AllocationService.SCOPE);
-		this.listener = Factory.getInstance().createListener(AllocationService.SCOPE);
+		this.informer = Factory.getInstance().createInformer(AllocationServer.SCOPE);
+		this.listener = Factory.getInstance().createListener(AllocationServer.SCOPE);
 	}
 
 	public void addSchedulerListener(SchedulerListener l) {
