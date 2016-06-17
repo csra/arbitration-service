@@ -7,10 +7,6 @@ package de.citec.csra.arbitration.srv;
 
 import rsb.InitializeException;
 import rsb.RSBException;
-import rsb.converter.DefaultConverterRepository;
-import rsb.converter.ProtocolBufferConverter;
-import rst.communicationpatterns.ResourceAllocationType;
-import rst.communicationpatterns.TaskStateType;
 
 /**
  *
@@ -20,9 +16,7 @@ import rst.communicationpatterns.TaskStateType;
 public class Arbitration {
 
 	public static void main(String[] args) throws InitializeException, RSBException, InterruptedException {
-		DefaultConverterRepository.getDefaultConverterRepository().addConverter(new ProtocolBufferConverter<>(TaskStateType.TaskState.getDefaultInstance()));
-		DefaultConverterRepository.getDefaultConverterRepository().addConverter(new ProtocolBufferConverter<>(ResourceAllocationType.ResourceAllocation.getDefaultInstance()));
-		TaskArbitrationServer ts = new TaskArbitrationServer("/test/scope/arb");
+		ArbitrationServer ts = new ArbitrationServer();
 		ts.activate();
 		ts.waitForShutdown();
 	}
