@@ -38,8 +38,6 @@ public class AllocationService {
 
 	private final static Logger LOG = Logger.getLogger(AllocationService.class.getName());
 
-	public static final String SCOPE = "/allocation";
-
 	private List<ResourceAllocation> getBlockers(String resource, String id, Priority min) {
 		Map<String, ResourceAllocation> temp = Allocations.getInstance().getMap();
 		temp.remove(id);

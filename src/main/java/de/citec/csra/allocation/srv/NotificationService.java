@@ -42,7 +42,7 @@ public class NotificationService {
 
 	private NotificationService() {
 		try {
-			this.informer = Factory.getInstance().createInformer(AllocationService.SCOPE);
+			this.informer = Factory.getInstance().createInformer(AllocationServer.SCOPE);
 			this.informer.activate();
 			this.participant = this.informer.getId();
 		} catch (RSBException ex) {
