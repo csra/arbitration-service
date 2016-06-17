@@ -13,6 +13,8 @@ import rsb.RSBException;
  * (<a href=mailto:patrick.holthaus@uni-bielefeld.de>patrick.holthaus@uni-bielefeld.de</a>)
  */
 public interface SchedulerController {
+	
+	public void schedule() throws RSBException;
 
 	public void abort() throws RSBException;
 	
