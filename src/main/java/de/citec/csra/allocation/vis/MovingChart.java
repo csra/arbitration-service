@@ -1,6 +1,6 @@
 package de.citec.csra.allocation.vis;
 
-import de.citec.csra.allocation.srv.AllocationService;
+import de.citec.csra.allocation.srv.AllocationServer;
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -41,6 +41,7 @@ import rsb.converter.DefaultConverterRepository;
 import rsb.converter.ProtocolBufferConverter;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State;
+import rst.communicationpatterns.TaskStateType;
 import rst.timing.IntervalType.Interval;
 
 /**
@@ -53,6 +54,8 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 				.addConverter(new ProtocolBufferConverter<>(ResourceAllocation.getDefaultInstance()));
 		DefaultConverterRepository.getDefaultConverterRepository()
 				.addConverter(new ProtocolBufferConverter<>(Interval.getDefaultInstance()));
+		DefaultConverterRepository.getDefaultConverterRepository()
+				.addConverter(new ProtocolBufferConverter<>(TaskStateType.TaskState.getDefaultInstance()));
 	}
 
 	/**
@@ -251,7 +254,7 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 	public static void main(final String[] args) throws Exception {
 
 		final MovingChart demo = new MovingChart("Resource Allocation Chart");
-		Listener l = Factory.getInstance().createListener(AllocationService.SCOPE);
+		Listener l = Factory.getInstance().createListener(AllocationServer.SCOPE);
 		l.addHandler(demo, true);
 
 		demo.pack();
