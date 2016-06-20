@@ -17,6 +17,7 @@
 package de.citec.csra.allocation;
 
 import rsb.InitializeException;
+import rsb.RSBException;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority;
 
@@ -33,6 +34,12 @@ public class TimableSleepingSkill extends Skill {
 	public TimableSleepingSkill(String name, String resource, long time, Policy policy, Priority priority) throws InitializeException {
 		super(name, resource, policy, priority);
 		this.time = time;
+	}
+	
+		
+	@Override
+	public void schedule() throws RSBException {
+		throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
 	}
 
 	@Override

@@ -47,6 +47,12 @@ public class SleepingSkill extends Skill implements SchedulerListener {
 		super(name, resource, policy, priority);
 
 	}
+	
+	
+	@Override
+	public void schedule() throws RSBException {
+		throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+	}
 
 	@Override
 	public void schedule(long delay, long duration) throws InterruptedException, RSBException {
