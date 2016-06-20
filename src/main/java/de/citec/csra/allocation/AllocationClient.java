@@ -140,7 +140,7 @@ public class AllocationClient implements SchedulerController {
 
 	@Override
 	public void schedule() throws RSBException {
-		LOG.log(Level.INFO, "resource allocation scheduled by client: ''{0}''", allocation.toString().replaceAll("\n", " "));
+		LOG.log(Level.FINE, "resource allocation scheduled by client: ''{0}''", allocation.toString().replaceAll("\n", " "));
 		synchronized (informer) {
 			if (this.informer.isActive()) {
 				this.informer.publish(allocation);
@@ -153,14 +153,14 @@ public class AllocationClient implements SchedulerController {
 		ResourceAllocation update = ResourceAllocation.newBuilder(this.allocation).setState(ABORTED).build();
 		if (isAlive()) {
 			this.allocation = update;
-			LOG.log(Level.INFO, "resource allocation aborted by client: ''{0}''", allocation.toString().replaceAll("\n", " "));
+			LOG.log(Level.FINE, "resource allocation aborted by client: ''{0}''", allocation.toString().replaceAll("\n", " "));
 			synchronized (informer) {
 				if (this.informer.isActive()) {
 					this.informer.publish(this.allocation);
 				}
 			}
 		} else {
-			LOG.log(Level.INFO, "resource allocation not active anymore ({0}), client aborting skipped: ''{1}''", new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
+			LOG.log(Level.FINE, "resource allocation not active anymore ({0}), client aborting skipped: ''{1}''", new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
 		}
 	}
 
@@ -169,14 +169,14 @@ public class AllocationClient implements SchedulerController {
 		ResourceAllocation update = ResourceAllocation.newBuilder(this.allocation).setState(RELEASED).build();
 		if (isAlive()) {
 			this.allocation = update;
-			LOG.log(Level.INFO, "resource allocation released by client: ''{0}''", allocation.toString().replaceAll("\n", " "));
+			LOG.log(Level.FINE, "resource allocation released by client: ''{0}''", allocation.toString().replaceAll("\n", " "));
 			synchronized (informer) {
 				if (this.informer.isActive()) {
 					this.informer.publish(this.allocation);
 				}
 			}
 		} else {
-			LOG.log(Level.INFO, "resource allocation not active anymore ({0}), client releasing skipped: ''{1}''", new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
+			LOG.log(Level.FINE, "resource allocation not active anymore ({0}), client releasing skipped: ''{1}''", new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
 		}
 	}
 
@@ -185,86 +185,86 @@ public class AllocationClient implements SchedulerController {
 		ResourceAllocation update = ResourceAllocation.newBuilder(this.allocation).setState(CANCELLED).build();
 		if (isAlive()) {
 			this.allocation = update;
-			LOG.log(Level.INFO, "resource allocation cancelled by client: ''{0}''", allocation);
+			LOG.log(Level.FINE, "resource allocation cancelled by client: ''{0}''", allocation);
 			synchronized (informer) {
 				if (this.informer.isActive()) {
 					this.informer.publish(this.allocation);
 				}
 			}
 		} else {
-			LOG.log(Level.INFO, "resource allocation not active anymore ({0}), client cancelling skipped: ''{1}''", new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
+			LOG.log(Level.FINE, "resource allocation not active anymore ({0}), client cancelling skipped: ''{1}''", new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
 		}
 	}
 
 	private void remoteScheduled(ResourceAllocation update) {
 		if (isAlive()) {
 			this.allocation = update;
-			LOG.log(Level.INFO, "resource allocation scheduled by server: ''{0}''", allocation.toString().replaceAll("\n", " "));
+			LOG.log(Level.FINE, "resource allocation scheduled by server: ''{0}''", allocation.toString().replaceAll("\n", " "));
 			for (SchedulerListener l : this.listeners) {
 				l.scheduled(allocation);
 			}
 		} else {
-			LOG.log(Level.INFO, "resource allocation not active anymore ({0}), server scheduling skipped: ''{1}''", new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
+			LOG.log(Level.FINE, "resource allocation not active anymore ({0}), server scheduling skipped: ''{1}''", new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
 		}
 	}
 
 	private void remoteRejected(ResourceAllocation update, String cause) {
 		if (isAlive()) {
 			this.allocation = update;
-			LOG.log(Level.INFO, "resource allocation rejected by server: ''{0}''", allocation.toString().replaceAll("\n", " "));
+			LOG.log(Level.FINE, "resource allocation rejected by server: ''{0}''", allocation.toString().replaceAll("\n", " "));
 			for (SchedulerListener l : this.listeners) {
 				l.rejected(allocation, cause);
 			}
 		} else {
-			LOG.log(Level.INFO, "resource allocation not active anymore ({0}), server rejecting skipped: ''{1}''", new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
+			LOG.log(Level.FINE, "resource allocation not active anymore ({0}), server rejecting skipped: ''{1}''", new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
 		}
 	}
 
 	private void remoteAllocated(ResourceAllocation update) {
 		if (isAlive()) {
 			this.allocation = update;
-			LOG.log(Level.INFO, "resource allocation granted by server: ''{0}''", allocation.toString().replaceAll("\n", " "));
+			LOG.log(Level.FINE, "resource allocation granted by server: ''{0}''", allocation.toString().replaceAll("\n", " "));
 			for (SchedulerListener l : this.listeners) {
 				l.allocated(allocation);
 			}
 		} else {
-			LOG.log(Level.INFO, "resource allocation not active anymore ({0}), server allocating skipped: ''{1}''", new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
+			LOG.log(Level.FINE, "resource allocation not active anymore ({0}), server allocating skipped: ''{1}''", new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
 		}
 	}
 
 	private void remoteAborted(ResourceAllocation update, String cause) {
 		if (isAlive()) {
 			this.allocation = update;
-			LOG.log(Level.INFO, "resource allocation aborted by server: ''{0}''", allocation.toString().replaceAll("\n", " "));
+			LOG.log(Level.FINE, "resource allocation aborted by server: ''{0}''", allocation.toString().replaceAll("\n", " "));
 			for (SchedulerListener l : this.listeners) {
 				l.aborted(allocation, cause);
 			}
 		} else {
-			LOG.log(Level.INFO, "resource allocation not active anymore ({0}), server aborting skipped: ''{1}''", new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
+			LOG.log(Level.FINE, "resource allocation not active anymore ({0}), server aborting skipped: ''{1}''", new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
 		}
 	}
 
 	private void remoteCancelled(ResourceAllocation update, String cause) {
 		if (isAlive()) {
 			this.allocation = update;
-			LOG.log(Level.INFO, "resource allocation cancelled by server: ''{0}''", allocation.toString().replaceAll("\n", " "));
+			LOG.log(Level.FINE, "resource allocation cancelled by server: ''{0}''", allocation.toString().replaceAll("\n", " "));
 			for (SchedulerListener l : this.listeners) {
 				l.cancelled(allocation, cause);
 			}
 		} else {
-			LOG.log(Level.INFO, "resource allocation not active anymore ({0}), server cancelling skipped: ''{1}''", new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
+			LOG.log(Level.FINE, "resource allocation not active anymore ({0}), server cancelling skipped: ''{1}''", new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
 		}
 	}
 
 	private void remoteReleased(ResourceAllocation update) {
 		if (isAlive()) {
 			this.allocation = update;
-			LOG.log(Level.INFO, "resource allocation released by server: ''{0}''", allocation.toString().replaceAll("\n", " "));
+			LOG.log(Level.FINE, "resource allocation released by server: ''{0}''", allocation.toString().replaceAll("\n", " "));
 			for (SchedulerListener l : this.listeners) {
 				l.released(allocation);
 			}
 		} else {
-			LOG.log(Level.INFO, "resource allocation not active anymore ({0}), server releasing skipped: ''{1}''", new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
+			LOG.log(Level.FINE, "resource allocation not active anymore ({0}), server releasing skipped: ''{1}''", new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
 		}
 	}
 
