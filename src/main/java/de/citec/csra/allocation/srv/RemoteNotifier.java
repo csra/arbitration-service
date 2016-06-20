@@ -69,7 +69,7 @@ public class RemoteNotifier implements Runnable {
 	private void publish() {
 		ResourceAllocation allocation = get();
 		try {
-			LOG.log(Level.INFO, "Publish allocation: " + allocation.toString().replaceAll("\n", " "));
+			LOG.log(Level.INFO, "Publish allocation: {0}", allocation.toString().replaceAll("\n", " "));
 			this.informer.publish(allocation);
 		} catch (RSBException | NullPointerException ex) {
 			LOG.log(Level.SEVERE, "could not publish current allocation status '" + allocation.toString().replaceAll("\n", " ") + "'", ex);
@@ -115,11 +115,10 @@ public class RemoteNotifier implements Runnable {
 			publish();
 
 			try {
-				boolean allocated = true;
-				while ((allocated = isAlive()) && System.currentTimeMillis() < get().getSlot().getEnd().getTime()) {
+				while (isAlive() && System.currentTimeMillis() < get().getSlot().getEnd().getTime()) {
 					Thread.sleep(this.interval);
 				}
-				if (!allocated) {
+				if (!isAlive()) {
 					return;
 				}
 				Allocations.getInstance().setState(this.id, RELEASED);
