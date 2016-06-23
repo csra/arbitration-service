@@ -52,7 +52,7 @@ public class TaskMonitor implements SchedulerListener {
 	private EventId submitterCause;
 	private final Estimation estimation;
 
-	public TaskMonitor(TaskState task, Scope submitterScope, EventId submitterCause, Informer submitter) throws InitializeException {
+	public TaskMonitor(TaskState task, Scope submitterScope, EventId submitterCause, Informer submitter) throws InitializeException, InterruptedException, RSBException {
 
 		this.task = task;
 		this.submitterCause = submitterCause;
@@ -94,7 +94,6 @@ public class TaskMonitor implements SchedulerListener {
 			handler.activate();
 			handlerReceiver.activate();
 			submitterReceiver.activate();
-			allocation.activate();
 			allocation.addSchedulerListener(this);
 			allocation.schedule();
 		} catch (Exception e) {
@@ -105,7 +104,6 @@ public class TaskMonitor implements SchedulerListener {
 	public void deactivate() {
 		LOG.log(Level.INFO, "Deactivating task monitor for ''{0}''", this.handlerScope);
 		try {
-			allocation.deactivate();
 			handler.deactivate();
 			handlerReceiver.deactivate();
 			submitterReceiver.deactivate();
