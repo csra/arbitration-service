@@ -39,6 +39,7 @@ public class SleepingTest {
 		sl.schedule(1000, 5000);
 		System.out.println(sl.getFuture().get());
 		sl.shutdown();
+		RemoteAllocationService.getInstance().shutdown();
 	}
 
 }
