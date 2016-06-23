@@ -85,7 +85,6 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 		this.result = executor.submit(this);
 		this.client = new AllocationClient(this.allocation);
 		this.client.addSchedulerListener(this);
-		this.client.activate();
 		this.client.schedule();
 	}
 
@@ -115,11 +114,6 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 			result.cancel(true);
 		}
 		try {
-			try {
-				client.deactivate();
-			} catch (RSBException ex) {
-				LOG.log(Level.SEVERE, "Could not deactivate resource allocation client", ex);
-			}
 			executor.shutdown();
 			executor.awaitTermination(5000, TimeUnit.MILLISECONDS);
 		} catch (InterruptedException x) {
@@ -150,6 +144,8 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 				Thread.sleep(100);
 			} catch (InterruptedException ex) {
 				LOG.log(Level.SEVERE, "Startup interrupted", ex);
+				Thread.interrupted();
+				return null;
 			}
 		}
 
@@ -169,14 +165,14 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 			try {
 				this.client.release();
 			} catch (RSBException ex) {
-				LOG.log(Level.SEVERE, "Could not release resources", ex);
+				LOG.log(Level.WARNING, "Could not release resources", ex);
 			}
 		} catch (ExecutionException ex) {
-			LOG.log(Level.SEVERE, "Execution failed", ex);
+			LOG.log(Level.WARNING, "Use code execution failed", ex);
 			try {
 				this.client.abort();
 			} catch (RSBException ex1) {
-				LOG.log(Level.SEVERE, "Could not abort resources", ex1);
+				LOG.log(Level.WARNING, "Could not abort resources", ex1);
 			}
 		}
 		return res;
