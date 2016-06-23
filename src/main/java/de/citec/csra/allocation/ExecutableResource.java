@@ -54,7 +54,6 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 	private ResourceAllocation allocation;
 
 	public ExecutableResource(String description, String resource, Policy policy, Priority priority) throws InitializeException {
-
 		this.description = description;
 		this.resources = resource;
 		this.policy = policy;
@@ -108,12 +107,12 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 ////			return result.isDone();
 //		}
 //	}
-	
 	public void shutdown() {
 		if (result != null && !result.isDone()) {
 			result.cancel(true);
 		}
 		try {
+			client.removeSchedulerListener(this);
 			executor.shutdown();
 			executor.awaitTermination(5000, TimeUnit.MILLISECONDS);
 		} catch (InterruptedException x) {

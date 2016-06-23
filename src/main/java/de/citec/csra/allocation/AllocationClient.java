@@ -19,12 +19,14 @@ package de.citec.csra.allocation;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import rsb.InitializeException;
 import rsb.RSBException;
 import rsb.util.QueueAdapter;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
+import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.*;
 
 /**
@@ -33,25 +35,29 @@ import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocatio
  * (<a href=mailto:patrick.holthaus@uni-bielefeld.de>patrick.holthaus@uni-bielefeld.de</a>)
  */
 public class AllocationClient implements SchedulerController {
-	
+
 	private final static Logger LOG = Logger.getLogger(AllocationClient.class.getName());
 
 	private ResourceAllocation allocation;
+	private final QueueAdapter qa;
 	private final BlockingQueue<ResourceAllocation> queue;
 	private final Set<SchedulerListener> listeners;
 	private final RemoteAllocationService remoteService;
 
-	public AllocationClient(ResourceAllocation allocation) throws InitializeException, InterruptedException, RSBException {
-		QueueAdapter qa = new QueueAdapter();
-		this.allocation = allocation;
+	public AllocationClient(ResourceAllocation allocation) throws InitializeException, RSBException {
+		this.qa = new QueueAdapter();
 		this.queue = qa.getQueue();
+		this.allocation = allocation;
 		this.listeners = new HashSet<>();
 		this.remoteService = RemoteAllocationService.getInstance();
-		this.remoteService.addHandler(qa, true);
 	}
 
 	public void addSchedulerListener(SchedulerListener l) {
 		this.listeners.add(l);
+	}
+
+	public void removeSchedulerListener(SchedulerListener l) {
+		this.listeners.remove(l);
 	}
 
 	private synchronized boolean isAlive() {
@@ -71,35 +77,15 @@ public class AllocationClient implements SchedulerController {
 
 	@Override
 	public void schedule() throws RSBException {
-		LOG.log(Level.FINE,
+		LOG.log(Level.INFO,
 				"resource allocation scheduled by client: ''{0}''",
 				allocation.toString().replaceAll("\n", " "));
 		new Thread(() -> {
 			while (isAlive()) {
 				try {
-					ResourceAllocation update = queue.take();
-					if (allocation != null && update.getId().equals(allocation.getId())) {
-						switch (update.getState()) {
-							case SCHEDULED:
-								remoteScheduled(update);
-								break;
-							case ALLOCATED:
-								remoteAllocated(update);
-								break;
-							case REJECTED:
-								remoteRejected(update, update.getDescription());
-								break;
-							case CANCELLED:
-								remoteCancelled(update, update.getDescription());
-								break;
-							case ABORTED:
-								remoteAborted(update, update.getDescription());
-							case RELEASED:
-								remoteReleased(update);
-								break;
-							case REQUESTED:
-								break;
-						}
+					ResourceAllocation update = queue.poll(2000, TimeUnit.MILLISECONDS);
+					if (update != null && update.getId().equals(allocation.getId())) {
+						remoteUpdated(update);
 					}
 				} catch (InterruptedException ex) {
 					LOG.log(Level.SEVERE, "Event dispatching interrupted", ex);
@@ -108,158 +94,124 @@ public class AllocationClient implements SchedulerController {
 				}
 			}
 		}).start();
-		this.remoteService.update(this.allocation);
+		try {
+			this.remoteService.addHandler(this.qa, true);
+			this.remoteService.update(this.allocation);
+		} catch (InterruptedException ex) {
+			LOG.log(Level.SEVERE, "Could not add handler, skipping remote update", ex);
+		}
 	}
 
 	@Override
 	public void abort() throws RSBException {
-		ResourceAllocation update = ResourceAllocation.newBuilder(this.allocation).setState(ABORTED).build();
-		if (isAlive()) {
-			this.allocation = update;
-			LOG.log(Level.FINE, 
-					"resource allocation aborted by client: ''{0}''",
-					allocation.toString().replaceAll("\n", " "));
-			this.remoteService.update(this.allocation);
-		} else {
-			LOG.log(Level.FINE, 
-					"resource allocation not active anymore ({0}), client aborting skipped: ''{1}''",
-					new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
-		}
+		updateRemote(ABORTED);
 	}
 
 	@Override
 	public void release() throws RSBException {
-		ResourceAllocation update = ResourceAllocation.newBuilder(this.allocation).setState(RELEASED).build();
-		if (isAlive()) {
-			this.allocation = update;
-			LOG.log(Level.FINE, 
-					"resource allocation released by client: ''{0}''", 
-					allocation.toString().replaceAll("\n", " "));
-			this.remoteService.update(this.allocation);
-		} else {
-			LOG.log(Level.FINE, 
-					"resource allocation not active anymore ({0}), client releasing skipped: ''{1}''",
-					new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
-		}
+		updateRemote(RELEASED);
 	}
 
 	@Override
 	public void cancel() throws RSBException {
-		ResourceAllocation update = ResourceAllocation.newBuilder(this.allocation).setState(CANCELLED).build();
-		if (isAlive()) {
-			this.allocation = update;
-			LOG.log(Level.FINE,
-					"resource allocation cancelled by client: ''{0}''",
-					allocation.toString().replaceAll("\n", " "));
-			this.remoteService.update(this.allocation);
-		} else {
-			LOG.log(Level.FINE, 
-					"resource allocation not active anymore ({0}), client cancelling skipped: ''{1}''",
-					new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
-		}
+		updateRemote(CANCELLED);
 	}
 
-	private void remoteScheduled(ResourceAllocation update) {
+	private void updateRemote(State newState) throws RSBException {
 		if (isAlive()) {
-			this.allocation = update;
-			LOG.log(Level.FINE, 
-					"resource allocation scheduled by server: ''{0}''",
-					allocation.toString().replaceAll("\n", " "));
-			for (SchedulerListener l : this.listeners) {
-				l.scheduled(allocation);
-			}
-		} else {
-			LOG.log(Level.FINE, 
-					"resource allocation not active anymore ({0}), server scheduling skipped: ''{1}''",
-					new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
-		}
-	}
+			ResourceAllocation update = ResourceAllocation.newBuilder(this.allocation).setState(newState).build();
+			try {
+				switch (newState) {
+					case ABORTED:
+					case CANCELLED:
+					case RELEASED:
+						LOG.log(Level.INFO,
+								"attempting client allocation state change ({0}) for: ''{1}''",
+								new Object[]{newState, allocation.toString().replaceAll("\n", " ")});
+						this.allocation = update;
+						this.remoteService.removeHandler(this.qa, true);
+						this.remoteService.update(this.allocation);
+						break;
+					case REJECTED:
+					case ALLOCATED:
+					case SCHEDULED:
+					case REQUESTED:
+						LOG.log(Level.WARNING,
+								"Illegal state ({0}) , skipping remote update",
+								newState);
+						break;
+				}
 
-	private void remoteRejected(ResourceAllocation update, String cause) {
-		if (isAlive()) {
-			this.allocation = update;
-			LOG.log(Level.FINE,
-					"resource allocation rejected by server: ''{0}''",
-					allocation.toString().replaceAll("\n", " "));
-			for (SchedulerListener l : this.listeners) {
-				l.rejected(allocation, cause);
+			} catch (InterruptedException ex) {
+				LOG.log(Level.SEVERE,
+						"Could not remove handler, skipping remote update",
+						ex);
 			}
 		} else {
 			LOG.log(Level.FINE,
-					"resource allocation not active anymore ({0}), server rejecting skipped: ''{1}''",
-					new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
+					"resource allocation not active anymore ({0}), skipping client allocation state change ({1}) for: ''{2}''",
+					new Object[]{allocation.getState(), newState, allocation.toString().replaceAll("\n", " ")});
 		}
 	}
 
-	private void remoteAllocated(ResourceAllocation update) {
+	private void remoteUpdated(ResourceAllocation update) {
 		if (isAlive()) {
-			this.allocation = update;
-			LOG.log(Level.FINE,
-					"resource allocation granted by server: ''{0}''",
+			LOG.log(Level.INFO,
+					"resource allocation updated by server: ''{0}''",
 					allocation.toString().replaceAll("\n", " "));
-			for (SchedulerListener l : this.listeners) {
-				l.allocated(allocation);
+			this.allocation = update;
+			switch (update.getState()) {
+				case SCHEDULED:
+					for (SchedulerListener l : this.listeners) {
+						l.scheduled(allocation);
+					}
+					break;
+				case ALLOCATED:
+					for (SchedulerListener l : this.listeners) {
+						l.allocated(allocation);
+					}
+					break;
+				case REJECTED:
+					for (SchedulerListener l : this.listeners) {
+						l.rejected(allocation, allocation.getDescription());
+					}
+					break;
+				case CANCELLED:
+					for (SchedulerListener l : this.listeners) {
+						l.cancelled(allocation, allocation.getDescription());
+					}
+					break;
+				case ABORTED:
+					for (SchedulerListener l : this.listeners) {
+						l.aborted(allocation, allocation.getDescription());
+					}
+				case RELEASED:
+					for (SchedulerListener l : this.listeners) {
+						l.released(allocation);
+					}
+					break;
+				case REQUESTED:
+					break;
+			}
+			if (!isAlive()) {
+				try {
+					this.remoteService.removeHandler(this.qa, true);
+				} catch (InterruptedException | RSBException ex) {
+					LOG.log(Level.SEVERE, "Could not remove handler", ex);
+				}
 			}
 		} else {
-			LOG.log(Level.FINE, 
-					"resource allocation not active anymore ({0}), server allocating skipped: ''{1}''", 
-					new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
-		}
-	}
-
-	private void remoteAborted(ResourceAllocation update, String cause) {
-		if (isAlive()) {
-			this.allocation = update;
-			LOG.log(Level.FINE, 
-					"resource allocation aborted by server: ''{0}''",
-					allocation.toString().replaceAll("\n", " "));
-			for (SchedulerListener l : this.listeners) {
-				l.aborted(allocation, cause);
-			}
-		} else {
 			LOG.log(Level.FINE,
-					"resource allocation not active anymore ({0}), server aborting skipped: ''{1}''",
-					new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
-		}
-	}
-
-	private void remoteCancelled(ResourceAllocation update, String cause) {
-		if (isAlive()) {
-			this.allocation = update;
-			LOG.log(Level.FINE,
-					"resource allocation cancelled by server: ''{0}''", 
-					allocation.toString().replaceAll("\n", " "));
-			for (SchedulerListener l : this.listeners) {
-				l.cancelled(allocation, cause);
-			}
-		} else {
-			LOG.log(Level.FINE,
-					"resource allocation not active anymore ({0}), server cancelling skipped: ''{1}''", 
-					new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
-		}
-	}
-
-	private void remoteReleased(ResourceAllocation update) {
-		if (isAlive()) {
-			this.allocation = update;
-			LOG.log(Level.FINE, 
-					"resource allocation released by server: ''{0}''",
-					allocation.toString().replaceAll("\n", " "));
-			for (SchedulerListener l : this.listeners) {
-				l.released(allocation);
-			}
-		} else {
-			LOG.log(Level.FINE, 
-					"resource allocation not active anymore ({0}), server releasing skipped: ''{1}''",
+					"resource allocation not active anymore ({0}), server update skipped: ''{1}''",
 					new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
 		}
 	}
 
 	@Override
 	public String toString() {
-		return getClass().getSimpleName() + 
-				((this.allocation == null)
-				? ""
-				: "[" + this.allocation.toString().replaceAll("\n", " ")+ "]");
+		return getClass().getSimpleName()
+				+ ((this.allocation == null)
+						? ""
+						: "[" + this.allocation.toString().replaceAll("\n", " ") + "]");
 	}
 }

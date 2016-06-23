@@ -37,43 +37,39 @@ public class RemoteAllocationService {
 	private final Informer informer;
 	private final Listener listener;
 
-	public static RemoteAllocationService getInstance() throws InitializeException {
+	public static RemoteAllocationService getInstance() throws InitializeException, RSBException {
 		if (instance == null) {
 			instance = new RemoteAllocationService();
 		}
 		return instance;
 	}
 
-	private RemoteAllocationService() throws InitializeException {
+	private RemoteAllocationService() throws InitializeException, RSBException {
 		this.informer = Factory.getInstance().createInformer(AllocationServer.getScope());
 		this.listener = Factory.getInstance().createListener(AllocationServer.getScope());
 		this.listener.addFilter(new OriginFilter(this.informer.getId(), true));
+		this.listener.activate();
+		this.informer.activate();
 	}
 
 	public void update(ResourceAllocation allocation) throws RSBException {
-		if (!this.informer.isActive()) {
-			this.informer.activate();
-		}
 		synchronized (this.informer) {
 			this.informer.publish(allocation);
 		}
-
 	}
 
 	public void addHandler(Handler handler, boolean wait) throws InterruptedException, RSBException {
 		this.listener.addHandler(handler, wait);
-		if (!this.listener.isActive()) {
-			this.listener.activate();
-		}
 	}
 
-	public void removeHandleR(Handler handler, boolean wait) throws InterruptedException, RSBException {
+	public void removeHandler(Handler handler, boolean wait) throws InterruptedException, RSBException {
 		this.listener.removeHandler(handler, wait);
 	}
 
-	public void deactivate() throws RSBException, InterruptedException {
+	public void shutdown() throws RSBException, InterruptedException {
 		this.informer.deactivate();
 		this.listener.deactivate();
+		instance = null;
 	}
 
 }
