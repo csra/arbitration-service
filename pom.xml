@@ -121,6 +121,13 @@
 							</platforms>
 						</program>
 						<program>
+							<mainClass>de.citec.csra.arbitration.srv.Arbitration</mainClass>
+							<id>csra-arbitration-server</id>
+							<platforms>
+								<platform>unix</platform>
+							</platforms>
+						</program>
+						<program>
 							<mainClass>de.citec.csra.allocation.vis.MovingChart</mainClass>
 							<id>csra-allocation-viewer</id>
 							<platforms>
