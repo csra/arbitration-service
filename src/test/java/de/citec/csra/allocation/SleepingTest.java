@@ -36,8 +36,8 @@ public class SleepingTest {
 		};
 		sl.schedule(0, 4000);
 		System.out.println(sl.getFuture().get());
-//		sl.schedule(1000, 5000);
-//		System.out.println(sl.getFuture().get());
+		sl.schedule(1000, 5000);
+		System.out.println(sl.getFuture().get());
 		sl.shutdown();
 	}
 

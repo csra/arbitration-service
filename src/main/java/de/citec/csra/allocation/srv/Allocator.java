@@ -12,8 +12,9 @@ package de.citec.csra.allocation.srv;
  */
 public class Allocator {
 	public static void main(String[] args) throws Exception {
-		AllocationServer a = new AllocationServer();
+		AllocationServer a = AllocationServer.getInstance();
 		a.activate();
 		a.waitForShutdown();
+		a.deactivate();
 	}
 }

@@ -6,13 +6,16 @@
 package de.citec.csra.allocation.srv;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.*;
+import rst.timing.IntervalType;
 
 /**
  *
@@ -39,7 +42,7 @@ public class Allocations {
 		return instance;
 	}
 
-	public Map<String, ResourceAllocation> getMap() {
+	Map<String, ResourceAllocation> getMap() {
 		synchronized (this.allocations) {
 			return new HashMap<>(this.allocations);
 		}
@@ -110,15 +113,29 @@ public class Allocations {
 			}
 		}
 	}
-
-	void init(ResourceAllocation allocation) {
+	
+	public boolean request(ResourceAllocation allocation) {
+		LOG.log(Level.INFO, "Allocation requested: {0}", allocation.toString().replaceAll("\n", " "));
+		
 		synchronized (this.allocations) {
 			this.allocations.put(allocation.getId(), allocation);
 			this.notifications.init(allocation.getId());
 		}
+
+		IntervalType.Interval match = fit(allocation);
+		if (match == null) {
+			LOG.log(Level.INFO, "Requested allocation failed (slot not available): {0}", allocation.toString().replaceAll("\n", " "));
+			reject(allocation, "no slot available");
+			return false;
+		} else {
+			allocation = ResourceAllocation.newBuilder(allocation).setSlot(match).build();
+			schedule(allocation);
+			return true;
+		}
 	}
 
 	void schedule(ResourceAllocation allocation) {
+		updateAffected(allocation, "slot superseded");
 		synchronized (this.allocations) {
 			if (isAlive(allocation.getId())) {
 				setState(allocation.getId(), SCHEDULED);
@@ -155,15 +172,102 @@ public class Allocations {
 		}
 	}
 
-	void release(ResourceAllocation allocation) {
+	public void finalize(ResourceAllocation allocation) {
 		synchronized (this.allocations) {
 			if (isAlive(allocation.getId())) {
-				System.out.println("from: " + this.allocations.get(allocation.getId()).getState());
 				setState(allocation.getId(), RELEASED);
 				this.notifications.update(allocation.getId());
 				this.allocations.remove(allocation.getId());
 			} else {
 				LOG.log(Level.WARNING, "attempt to release allocation ''{0}'' ignored, no such allocation active", allocation.getId());
+			}
+		}
+	}
+
+	List<ResourceAllocation> getBlockers(String resource, String id, ResourceAllocation.Priority min) {
+		Map<String, ResourceAllocation> temp = getMap();
+		temp.remove(id);
+		List<ResourceAllocation> matching = temp.values().stream().
+				filter(allocation
+						-> allocation.getResourceIds(0).startsWith(resource)
+						|| resource.startsWith(allocation.getResourceIds(0))
+				).
+				filter(allocation
+						-> allocation.getPriority().compareTo(min) >= 0
+				).
+				collect(Collectors.toList());
+		matching.removeIf(e -> e.getSlot().getEnd().getTime() < System.currentTimeMillis());
+		matching.sort((l, r) -> {
+			return (int) (l.getSlot().getEnd().getTime() - r.getSlot().getEnd().getTime());
+		});
+		return matching;
+	}
+
+	List<ResourceAllocation> getAffected(String resource, String id, ResourceAllocation.Priority min) {
+		Map<String, ResourceAllocation> temp = getMap();
+		temp.remove(id);
+		List<ResourceAllocation> matching = temp.values().stream().
+				filter(allocation
+						-> allocation.getResourceIds(0).startsWith(resource)
+						|| resource.startsWith(allocation.getResourceIds(0))
+				).
+				filter(allocation
+						-> allocation.getPriority().compareTo(min) < 0
+				).
+				collect(Collectors.toList());
+		matching.removeIf(e -> e.getSlot().getEnd().getTime() < System.currentTimeMillis());
+		matching.sort((l, r) -> {
+			return (int) (l.getSlot().getEnd().getTime() - r.getSlot().getEnd().getTime());
+		});
+		return matching;
+	}
+
+	IntervalType.Interval fit(ResourceAllocation allocation) {
+		List<ResourceAllocation> blockers = getBlockers(allocation.getResourceIds(0), allocation.getId(), allocation.getPriority());
+		List<IntervalType.Interval> times = blockers.stream().map(b -> b.getSlot()).collect(Collectors.toList());
+		IntervalType.Interval match = null;
+		if (allocation.getState().equals(ALLOCATED)) {
+			match = IntervalUtils.findRemaining(allocation.getSlot(), times);
+		} else {
+			switch (allocation.getPolicy()) {
+				case PRESERVE:
+					match = IntervalUtils.findComplete(allocation.getSlot(), allocation.hasConstraints() ? allocation.getConstraints() : allocation.getSlot(), times);
+					break;
+				case FIRST:
+					match = IntervalUtils.findFirst(allocation.getSlot(), allocation.hasConstraints() ? allocation.getConstraints() : allocation.getSlot(), times);
+					break;
+				case MAXIMUM:
+
+					match = IntervalUtils.findMax(allocation.getSlot(), allocation.hasConstraints() ? allocation.getConstraints() : allocation.getSlot(), times);
+
+					break;
+				default:
+					LOG.log(Level.INFO, "Requested allocation failed (unsupported policy): {0}", allocation.toString().replaceAll("\n", " "));
+					break;
+			}
+		}
+		return match;
+	}
+
+	void updateAffected(ResourceAllocation allocation, String reason) {
+		List<ResourceAllocation> affected = getAffected(allocation.getResourceIds(0), allocation.getId(), allocation.getPriority());
+		for (ResourceAllocation running : affected) {
+			IntervalType.Interval mod = fit(running);
+			ResourceAllocation.Builder builder = ResourceAllocation.newBuilder(running);
+			if (mod == null) {
+				switch (running.getState()) {
+					case REQUESTED:
+					case SCHEDULED:
+						builder.setState(CANCELLED);
+						break;
+					case ALLOCATED:
+						builder.setState(ABORTED);
+						break;
+				}
+				update(builder.build(), reason);
+			} else if (!mod.equals(running.getSlot())) {
+				builder.setSlot(mod);
+				update(builder.build(), reason);
 			}
 		}
 	}

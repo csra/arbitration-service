@@ -36,22 +36,47 @@ public class ArbitrationServer {
 	}
 
 	private final static Logger LOG = Logger.getLogger(ArbitrationServer.class.getName());
+	private final static String SCOPEVAR = "SCOPE_ARBITRATION";
+	private final static String FALLBACK = "/coordination/arbitration/";
+
+	private static ArbitrationServer instance;
+	private static String scope;
+
 	private final Listener listener;
 	private final Informer informer;
 	private final BlockingQueue<Event> queue;
-	public static final String SCOPE = "/arbitration";
 
-	public ArbitrationServer() throws InterruptedException, RSBException {
+	private ArbitrationServer() throws InterruptedException, RSBException {
 		EventQueueAdapter qa = new EventQueueAdapter();
 
-		this.informer = Factory.getInstance().createInformer(SCOPE);
-		this.listener = Factory.getInstance().createListener(SCOPE);
+		this.informer = Factory.getInstance().createInformer(getScope());
+		this.listener = Factory.getInstance().createListener(getScope());
 		this.listener.addHandler(qa, true);
 		this.listener.addFilter(new OriginFilter(this.informer.getId(), true));
 		this.queue = qa.getQueue();
 	}
 
+	public static String getScope() {
+		if (scope == null) {
+			if (System.getenv().containsKey(SCOPEVAR)) {
+				scope = System.getenv(SCOPEVAR);
+			} else {
+				LOG.log(Level.WARNING, "using fallback scope ''{0}'', consider exporting ${1}", new String[]{FALLBACK, SCOPEVAR});
+				scope = FALLBACK;
+			}
+		}
+		return scope;
+	}
+
+	public static ArbitrationServer getInstance() throws InterruptedException, RSBException {
+		if (instance == null) {
+			instance = new ArbitrationServer();
+		}
+		return instance;
+	}
+
 	public void waitForShutdown() throws InterruptedException {
+		LOG.log(Level.INFO, "Arbitration service listening at ''{0}''.", this.listener.getScope());
 		while (this.listener.isActive()) {
 			Event e = this.queue.take();
 			if (e.getData() instanceof TaskState) {
@@ -78,12 +103,10 @@ public class ArbitrationServer {
 	public void activate() throws RSBException {
 		this.informer.activate();
 		this.listener.activate();
-		LOG.log(Level.INFO, "RSB communication activated at ''{0}''.", SCOPE);
 	}
 
 	public void deactivate() throws RSBException, InterruptedException {
 		this.listener.deactivate();
 		this.informer.deactivate();
-		LOG.log(Level.INFO, "RSB communication deactivated ''{0}''.", SCOPE);
 	}
 }

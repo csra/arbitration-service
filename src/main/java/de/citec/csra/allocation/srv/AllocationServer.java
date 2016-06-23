@@ -16,7 +16,6 @@ import rsb.converter.ProtocolBufferConverter;
 import rsb.filter.OriginFilter;
 import rsb.util.QueueAdapter;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
-import rst.communicationpatterns.TaskStateType;
 
 /**
  *
@@ -28,37 +27,58 @@ public class AllocationServer {
 	static {
 		DefaultConverterRepository.getDefaultConverterRepository()
 				.addConverter(new ProtocolBufferConverter<>(ResourceAllocation.getDefaultInstance()));
-		DefaultConverterRepository.getDefaultConverterRepository()
-				.addConverter(new ProtocolBufferConverter<>(TaskStateType.TaskState.getDefaultInstance()));
 	}
 
-	public static final String SCOPE = "/allocation";
 	private final static Logger LOG = Logger.getLogger(AllocationServer.class.getName());
+	private final static String SCOPEVAR = "SCOPE_ALLOCATION";
+	private final static String FALLBACK = "/coordination/allocation/";
+
+	private static AllocationServer instance;
+	private static String scope;
 	private final Listener listener;
 	private final BlockingQueue<ResourceAllocation> queue;
-	private final AllocationService service;
 
-	public AllocationServer() throws InterruptedException, RSBException {
+	private AllocationServer() throws InterruptedException, RSBException {
+
 		QueueAdapter<ResourceAllocation> qa = new QueueAdapter<>();
 
-		this.service = new AllocationService();
-		this.listener = Factory.getInstance().createListener(SCOPE);
+		this.listener = Factory.getInstance().createListener(getScope());
 		this.listener.addFilter(new OriginFilter(NotificationService.getInstance().getID(), true));
 		this.listener.addHandler(qa, true);
 		this.queue = qa.getQueue();
 	}
 
+	public static String getScope() {
+		if (scope == null) {
+			if (System.getenv().containsKey(SCOPEVAR)) {
+				scope = System.getenv(SCOPEVAR);
+			} else {
+				LOG.log(Level.WARNING, "using fallback scope ''{0}'', consider exporting ${1}", new String[]{FALLBACK, SCOPEVAR});
+				scope = FALLBACK;
+			}
+		}
+		return scope;
+	}
+
+	public static AllocationServer getInstance() throws InterruptedException, RSBException {
+		if (instance == null) {
+			instance = new AllocationServer();
+		}
+		return instance;
+	}
+
 	public void waitForShutdown() throws InterruptedException {
+		LOG.log(Level.INFO, "Allocation service listening at ''{0}''.", this.listener.getScope());
 		while (this.listener.isActive()) {
 			ResourceAllocation a = this.queue.take();
 			switch (a.getState()) {
 				case REQUESTED:
-					service.requested(a);
+					Allocations.getInstance().request(a);
 					break;
 				case CANCELLED:
 				case ABORTED:
 				case RELEASED:
-					service.released(a);
+					Allocations.getInstance().finalize(a);
 					break;
 				case ALLOCATED:
 				case REJECTED:
@@ -72,11 +92,9 @@ public class AllocationServer {
 
 	public void activate() throws RSBException {
 		this.listener.activate();
-		LOG.log(Level.INFO, "RSB Communication activated.");
 	}
 
 	public void deactivate() throws RSBException, InterruptedException {
 		this.listener.deactivate();
-		LOG.log(Level.INFO, "RSB Communication deactivated.");
 	}
 }

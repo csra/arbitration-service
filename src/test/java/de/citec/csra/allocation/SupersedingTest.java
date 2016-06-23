@@ -38,7 +38,7 @@ public class SupersedingTest {
 	public static void initServer() throws InterruptedException {
 		new Thread(() -> {
 			try {
-				AllocationServer a = new AllocationServer();
+				AllocationServer a = AllocationServer.getInstance();
 				a.activate();
 				a.waitForShutdown();
 			} catch (InterruptedException | RSBException ex) {

@@ -254,7 +254,7 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 	public static void main(final String[] args) throws Exception {
 
 		final MovingChart demo = new MovingChart("Resource Allocation Chart");
-		Listener l = Factory.getInstance().createListener(AllocationServer.SCOPE);
+		Listener l = Factory.getInstance().createListener(AllocationServer.getScope());
 		l.addHandler(demo, true);
 
 		demo.pack();

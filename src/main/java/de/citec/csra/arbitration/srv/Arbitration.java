@@ -16,9 +16,10 @@ import rsb.RSBException;
 public class Arbitration {
 
 	public static void main(String[] args) throws InitializeException, RSBException, InterruptedException {
-		ArbitrationServer ts = new ArbitrationServer();
+		ArbitrationServer ts = ArbitrationServer.getInstance();
 		ts.activate();
 		ts.waitForShutdown();
+		ts.deactivate();
 	}
 
 }

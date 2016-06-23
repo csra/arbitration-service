@@ -45,8 +45,8 @@ public class RemoteAllocationService {
 	}
 
 	private RemoteAllocationService() throws InitializeException {
-		this.informer = Factory.getInstance().createInformer(AllocationServer.SCOPE);
-		this.listener = Factory.getInstance().createListener(AllocationServer.SCOPE);
+		this.informer = Factory.getInstance().createInformer(AllocationServer.getScope());
+		this.listener = Factory.getInstance().createListener(AllocationServer.getScope());
 		this.listener.addFilter(new OriginFilter(this.informer.getId(), true));
 	}
 

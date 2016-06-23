@@ -5,7 +5,6 @@
  */
 package de.citec.csra.arbitration.srv;
 
-import static de.citec.csra.arbitration.srv.ArbitrationServer.SCOPE;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -59,7 +58,7 @@ public class Estimation {
 		if (stored != null) {
 			this.handler = stored;
 		} else {
-			setHandler(this.submitter.replaceAll(SCOPE, ""));
+			setHandler(this.submitter.replaceAll(ArbitrationServer.getScope(), ""));
 		}
 	}
 

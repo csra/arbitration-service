@@ -85,8 +85,8 @@ public abstract class Skill implements SchedulerController, Runnable {
 		this.resources = resource;
 		this.policy = policy;
 		this.priority = priority;
-		this.informer = Factory.getInstance().createInformer(AllocationServer.SCOPE);
-		this.listener = Factory.getInstance().createListener(AllocationServer.SCOPE);
+		this.informer = Factory.getInstance().createInformer(AllocationServer.getScope());
+		this.listener = Factory.getInstance().createListener(AllocationServer.getScope());
 	}
 
 	public void addSchedulerListener(SchedulerListener l) {
