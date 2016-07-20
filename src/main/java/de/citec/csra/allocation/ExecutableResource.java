@@ -107,9 +107,9 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 ////			return result.isDone();
 //		}
 //	}
-	public void shutdown() {
+	public void shutdown(boolean interrupt) {
 		if (result != null && !result.isDone()) {
-			result.cancel(true);
+			result.cancel(interrupt);
 		}
 		try {
 			client.removeSchedulerListener(this);
@@ -140,9 +140,9 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 					return null;
 			}
 			try {
-				Thread.sleep(100);
+				Thread.sleep(50);
 			} catch (InterruptedException ex) {
-				LOG.log(Level.SEVERE, "Startup interrupted", ex);
+				LOG.log(Level.SEVERE, "Startup interrupted in state " + this.allocation.getState(), ex);
 				Thread.interrupted();
 				return null;
 			}
@@ -191,7 +191,7 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 	@Override
 	public void rejected(ResourceAllocation allocation, String cause) {
 		this.allocation = allocation;
-		shutdown();
+		shutdown(false);
 	}
 
 	@Override
@@ -202,19 +202,19 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 	@Override
 	public void cancelled(ResourceAllocation allocation, String cause) {
 		this.allocation = allocation;
-		shutdown();
+		shutdown(false);
 	}
 
 	@Override
 	public void aborted(ResourceAllocation allocation, String cause) {
 		this.allocation = allocation;
-		shutdown();
+		shutdown(true);
 	}
 
 	@Override
 	public void released(ResourceAllocation allocation) {
 		this.allocation = allocation;
-		shutdown();
+		shutdown(true);
 	}
 
 }
