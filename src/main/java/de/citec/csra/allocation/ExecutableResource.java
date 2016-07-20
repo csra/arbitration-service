@@ -25,12 +25,13 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import rsb.InitializeException;
 import rsb.RSBException;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initiator.SYSTEM;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority;
+import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.ABORTED;
+import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.CANCELLED;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.REQUESTED;
 import rst.timing.IntervalType;
 import rst.timing.TimestampType;
@@ -53,14 +54,14 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 	private AllocationClient client;
 	private ResourceAllocation allocation;
 
-	public ExecutableResource(String description, String resource, Policy policy, Priority priority) throws InitializeException {
+	public ExecutableResource(String description, String resource, Policy policy, Priority priority) {
 		this.description = description;
 		this.resources = resource;
 		this.policy = policy;
 		this.priority = priority;
 	}
 
-	public void schedule(long delay, long duration) throws InterruptedException, RSBException {
+	public void schedule(long delay, long duration) throws RSBException {
 
 		long now = System.currentTimeMillis();
 		long start = now + delay;
@@ -107,7 +108,7 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 ////			return result.isDone();
 //		}
 //	}
-	public void shutdown(boolean interrupt) {
+	private void terminateExecution(boolean interrupt) {
 		if (result != null && !result.isDone()) {
 			result.cancel(interrupt);
 		}
@@ -118,6 +119,26 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 		} catch (InterruptedException x) {
 			LOG.log(Level.SEVERE, "Interrupted during executor shutdown", x);
 			Thread.currentThread().interrupt();
+		}
+	}
+
+	public void shutdown() throws RSBException {
+		switch (allocation.getState()) {
+			case REQUESTED:
+			case SCHEDULED:
+				client.cancel();
+				allocation = ResourceAllocation.newBuilder(allocation).setState(CANCELLED).build();
+				terminateExecution(false);
+				break;
+			case ALLOCATED:
+				client.abort();
+				allocation = ResourceAllocation.newBuilder(allocation).setState(ABORTED).build();
+				terminateExecution(true);
+				break;
+			default:
+				LOG.log(Level.WARNING, "Shutdown called in inactive state");
+				terminateExecution(false);
+				break;
 		}
 	}
 
@@ -191,7 +212,7 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 	@Override
 	public void rejected(ResourceAllocation allocation, String cause) {
 		this.allocation = allocation;
-		shutdown(false);
+		terminateExecution(false);
 	}
 
 	@Override
@@ -202,19 +223,18 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 	@Override
 	public void cancelled(ResourceAllocation allocation, String cause) {
 		this.allocation = allocation;
-		shutdown(false);
+		terminateExecution(false);
 	}
 
 	@Override
 	public void aborted(ResourceAllocation allocation, String cause) {
 		this.allocation = allocation;
-		shutdown(true);
+		terminateExecution(true);
 	}
 
 	@Override
 	public void released(ResourceAllocation allocation) {
 		this.allocation = allocation;
-		shutdown(true);
+		terminateExecution(true);
 	}
-
 }
