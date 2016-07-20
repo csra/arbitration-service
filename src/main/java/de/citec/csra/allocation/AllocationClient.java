@@ -77,7 +77,7 @@ public class AllocationClient implements SchedulerController {
 
 	@Override
 	public void schedule() throws RSBException {
-		LOG.log(Level.INFO,
+		LOG.log(Level.FINE,
 				"resource allocation scheduled by client: ''{0}''",
 				allocation.toString().replaceAll("\n", " "));
 		new Thread(() -> {
@@ -125,9 +125,12 @@ public class AllocationClient implements SchedulerController {
 					case ABORTED:
 					case CANCELLED:
 					case RELEASED:
-						LOG.log(Level.INFO,
-								"attempting client allocation state change ({0}) for: ''{1}''",
-								new Object[]{newState, allocation.toString().replaceAll("\n", " ")});
+						LOG.log(Level.FINE,
+								"attempting client allocation state change ''{0}'' -> ''{1}'' ({2})",
+								new Object[]{
+									allocation.getState(),
+									newState,
+									update.toString().replaceAll("\n", " ")});
 						this.allocation = update;
 						this.remoteService.removeHandler(this.qa, true);
 						this.remoteService.update(this.allocation);
@@ -156,11 +159,14 @@ public class AllocationClient implements SchedulerController {
 
 	private void remoteUpdated(ResourceAllocation update) {
 		if (isAlive()) {
-			LOG.log(Level.INFO,
-					"resource allocation updated by server: ''{0}''",
-					allocation.toString().replaceAll("\n", " "));
+			LOG.log(Level.FINE,
+					"resource allocation updated by server ''{0}'' -> ''{1}'' ({2})",
+					new Object[]{
+						this.allocation.getState(),
+						update.getState(),
+						update.toString().replaceAll("\n", " ")});
 			this.allocation = update;
-			switch (update.getState()) {
+			switch (allocation.getState()) {
 				case SCHEDULED:
 					for (SchedulerListener l : this.listeners) {
 						l.scheduled(allocation);
