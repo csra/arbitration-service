@@ -113,10 +113,10 @@ public class Allocations {
 			}
 		}
 	}
-	
+
 	public boolean request(ResourceAllocation allocation) {
 		LOG.log(Level.INFO, "Allocation requested: {0}", allocation.toString().replaceAll("\n", " "));
-		
+
 		synchronized (this.allocations) {
 			this.allocations.put(allocation.getId(), allocation);
 			this.notifications.init(allocation.getId());
@@ -138,6 +138,7 @@ public class Allocations {
 		updateAffected(allocation, "slot superseded");
 		synchronized (this.allocations) {
 			if (isAlive(allocation.getId())) {
+				this.allocations.put(allocation.getId(), allocation);
 				setState(allocation.getId(), SCHEDULED);
 				this.notifications.update(allocation.getId());
 			} else {
@@ -224,29 +225,33 @@ public class Allocations {
 
 	IntervalType.Interval fit(ResourceAllocation allocation) {
 		List<ResourceAllocation> blockers = getBlockers(allocation.getResourceIds(0), allocation.getId(), allocation.getPriority());
-		List<IntervalType.Interval> times = blockers.stream().map(b -> b.getSlot()).collect(Collectors.toList());
-		IntervalType.Interval match = null;
-		if (allocation.getState().equals(ALLOCATED)) {
-			match = IntervalUtils.findRemaining(allocation.getSlot(), times);
-		} else {
-			switch (allocation.getPolicy()) {
-				case PRESERVE:
-					match = IntervalUtils.findComplete(allocation.getSlot(), allocation.hasConstraints() ? allocation.getConstraints() : allocation.getSlot(), times);
-					break;
-				case FIRST:
-					match = IntervalUtils.findFirst(allocation.getSlot(), allocation.hasConstraints() ? allocation.getConstraints() : allocation.getSlot(), times);
-					break;
-				case MAXIMUM:
+		if (!blockers.isEmpty()) {
+			List<IntervalType.Interval> times = blockers.stream().map(b -> b.getSlot()).collect(Collectors.toList());
+			IntervalType.Interval match = null;
+			if (allocation.getState().equals(ALLOCATED)) {
+				match = IntervalUtils.findRemaining(allocation.getSlot(), times);
+			} else {
+				switch (allocation.getPolicy()) {
+					case PRESERVE:
+						match = IntervalUtils.findComplete(allocation.getSlot(), allocation.hasConstraints() ? allocation.getConstraints() : allocation.getSlot(), times);
+						break;
+					case FIRST:
+						match = IntervalUtils.findFirst(allocation.getSlot(), allocation.hasConstraints() ? allocation.getConstraints() : allocation.getSlot(), times);
+						break;
+					case MAXIMUM:
 
-					match = IntervalUtils.findMax(allocation.getSlot(), allocation.hasConstraints() ? allocation.getConstraints() : allocation.getSlot(), times);
+						match = IntervalUtils.findMax(allocation.getSlot(), allocation.hasConstraints() ? allocation.getConstraints() : allocation.getSlot(), times);
 
-					break;
-				default:
-					LOG.log(Level.INFO, "Requested allocation failed (unsupported policy): {0}", allocation.toString().replaceAll("\n", " "));
-					break;
+						break;
+					default:
+						LOG.log(Level.INFO, "Requested allocation failed (unsupported policy): {0}", allocation.toString().replaceAll("\n", " "));
+						break;
+				}
 			}
+			return match;
+		} else {
+			return allocation.getSlot();
 		}
-		return match;
 	}
 
 	void updateAffected(ResourceAllocation allocation, String reason) {
