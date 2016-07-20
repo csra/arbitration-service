@@ -140,7 +140,7 @@ public class Allocations {
 			if (isAlive(allocation.getId())) {
 				this.allocations.put(allocation.getId(), allocation);
 				setState(allocation.getId(), SCHEDULED);
-				this.notifications.update(allocation.getId());
+				this.notifications.update(allocation.getId(), true);
 			} else {
 				LOG.log(Level.WARNING, "attempt to schedule allocation ''{0}'' ignored, no such allocation active", allocation.getId());
 			}
@@ -152,7 +152,7 @@ public class Allocations {
 			if (isAlive(allocation.getId())) {
 				setState(allocation.getId(), REJECTED);
 				setReason(allocation.getId(), reason);
-				this.notifications.update(allocation.getId());
+				this.notifications.update(allocation.getId(), true);
 				this.allocations.remove(allocation.getId());
 			} else {
 				LOG.log(Level.WARNING, "attempt to reject allocation ''{0}'' ignored, no such allocation active", allocation.getId());
@@ -165,7 +165,7 @@ public class Allocations {
 			if (isAlive(allocation.getId())) {
 				this.allocations.put(allocation.getId(), allocation);
 				setReason(allocation.getId(), reason);
-				this.notifications.update(allocation.getId());
+				this.notifications.update(allocation.getId(), true);
 				this.allocations.remove(allocation.getId());
 			} else {
 				LOG.log(Level.WARNING, "attempt to update allocation ''{0}'' ignored, no such allocation active", allocation.getId());
@@ -176,8 +176,8 @@ public class Allocations {
 	public void finalize(ResourceAllocation allocation) {
 		synchronized (this.allocations) {
 			if (isAlive(allocation.getId())) {
-				setState(allocation.getId(), RELEASED);
-				this.notifications.update(allocation.getId());
+				this.allocations.put(allocation.getId(), allocation);
+				this.notifications.update(allocation.getId(), false);
 				this.allocations.remove(allocation.getId());
 			} else {
 				LOG.log(Level.WARNING, "attempt to release allocation ''{0}'' ignored, no such allocation active", allocation.getId());
