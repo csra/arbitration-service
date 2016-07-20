@@ -67,11 +67,13 @@ public class NotificationService {
 		}
 	}
 
-	public void update(String id) {
+	public void update(String id, boolean publish) {
 		if (functional()) {
 			if (this.notifiers.containsKey(id)) {
 				RemoteNotifier notifier = this.notifiers.get(id);
-				notifier.update();
+				if(publish){
+					notifier.update();
+				}
 				if (!Allocations.getInstance().isAlive(id)) {
 					if (this.futures.containsKey(id)) {
 
