@@ -21,7 +21,7 @@ import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Prior
 public class SleepingTest {
 
 	public static void main(String[] args) throws InitializeException, InterruptedException, RSBException, ExecutionException {
-		ExecutableResource sl = new ExecutableResource("descr", "/dev/urandom", Policy.PRESERVE, Priority.NORMAL) {
+		ExecutableResource sl = new ExecutableResource("descr", Policy.PRESERVE, Priority.NORMAL, "/dev/urandom") {
 			@Override
 			public Object execute(long slice) throws ExecutionException {
 				try {
