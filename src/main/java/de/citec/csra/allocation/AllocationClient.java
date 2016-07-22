@@ -166,39 +166,10 @@ public class AllocationClient implements SchedulerController {
 						update.getState(),
 						update.toString().replaceAll("\n", " ")});
 			this.allocation = update;
-			switch (allocation.getState()) {
-				case SCHEDULED:
-					for (SchedulerListener l : this.listeners) {
-						l.scheduled(allocation);
-					}
-					break;
-				case ALLOCATED:
-					for (SchedulerListener l : this.listeners) {
-						l.allocated(allocation);
-					}
-					break;
-				case REJECTED:
-					for (SchedulerListener l : this.listeners) {
-						l.rejected(allocation, allocation.getDescription());
-					}
-					break;
-				case CANCELLED:
-					for (SchedulerListener l : this.listeners) {
-						l.cancelled(allocation, allocation.getDescription());
-					}
-					break;
-				case ABORTED:
-					for (SchedulerListener l : this.listeners) {
-						l.aborted(allocation, allocation.getDescription());
-					}
-				case RELEASED:
-					for (SchedulerListener l : this.listeners) {
-						l.released(allocation);
-					}
-					break;
-				case REQUESTED:
-					break;
+			for (SchedulerListener l : this.listeners) {
+				l.allocationUpdated(allocation, allocation.getDescription());
 			}
+
 			if (!isAlive()) {
 				try {
 					this.remoteService.removeHandler(this.qa, true);

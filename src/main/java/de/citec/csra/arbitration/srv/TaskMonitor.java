@@ -111,17 +111,7 @@ public class TaskMonitor implements SchedulerListener {
 			e.printStackTrace();
 		}
 	}
-
-	@Override
-	public void scheduled(ResourceAllocation allocation) {
-		LOG.log(Level.FINE, "Ignoring resource scheduling ''{0}''", allocation.toString().replaceAll("\n", " "));
-	}
-
-	@Override
-	public void rejected(ResourceAllocation allocation, String cause) {
-		updateTask(REJECTED, SUBMITTER);
-	}
-
+	
 	private void publish(Origin... whereTo) {
 		for (Origin w : whereTo) {
 			EventId c = submitterCause;
@@ -154,8 +144,31 @@ public class TaskMonitor implements SchedulerListener {
 			}
 		}
 	}
-
+	
 	@Override
+	public void allocationUpdated(ResourceAllocation allocation, String cause) {
+		switch(allocation.getState()){
+			case SCHEDULED:
+				LOG.log(Level.FINE, "Ignoring resource scheduling ''{0}''", allocation.toString().replaceAll("\n", " "));
+				break;
+			case REJECTED:
+				updateTask(REJECTED, SUBMITTER);
+				break;
+			case ALLOCATED:
+				allocated(allocation);
+				break;
+			case CANCELLED:
+				updateTask(ABORTED, SUBMITTER, HANDLER);
+				break;
+			case ABORTED:
+				updateTask(ABORTED, SUBMITTER, HANDLER);
+				break;
+			case RELEASED:
+				updateTask(ABORTED, SUBMITTER, HANDLER);
+				break;
+		}
+	}
+
 	public void allocated(ResourceAllocation allocation) {
 
 		if (initiated < 0) {
@@ -188,21 +201,6 @@ public class TaskMonitor implements SchedulerListener {
 		} else {
 			LOG.log(Level.INFO, "Task communication between ''{0}'' and ''{1}'' already established, ignoring re-allocation", new Object[]{this.submitterScope, this.handlerScope});
 		}
-	}
-
-	@Override
-	public void cancelled(ResourceAllocation allocation, String cause) {
-		updateTask(ABORTED, SUBMITTER, HANDLER);
-	}
-
-	@Override
-	public void aborted(ResourceAllocation allocation, String cause) {
-		updateTask(ABORTED, SUBMITTER, HANDLER);
-	}
-
-	@Override
-	public void released(ResourceAllocation allocation) {
-		updateTask(ABORTED, SUBMITTER, HANDLER);
 	}
 
 	public void updateTask(TaskState.State state, Origin... whereTo) {

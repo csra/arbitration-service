@@ -16,6 +16,7 @@
  */
 package de.citec.csra.allocation;
 
+import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -46,19 +47,19 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 	private final static Logger LOG = Logger.getLogger(ExecutableResource.class.getName());
 	private final ExecutorService executor = Executors.newSingleThreadExecutor();
 	private Future<T> result;
-
-	private final String description;
-	private final String resources;
-	private final Policy policy;
-	private final Priority priority;
 	private AllocationClient client;
 	private ResourceAllocation allocation;
 
-	public ExecutableResource(String description, String resource, Policy policy, Priority priority) {
-		this.description = description;
-		this.resources = resource;
-		this.policy = policy;
-		this.priority = priority;
+	public ExecutableResource(String description, Policy policy, Priority priority, String... resources) {
+		this.allocation = ResourceAllocation.newBuilder().
+				setId(UUID.randomUUID().toString().substring(0, 12)).
+				setInitiator(SYSTEM).
+				setState(REQUESTED).
+				setPolicy(policy).
+				setPriority(priority).
+				setDescription(description).
+				addAllResourceIds(Arrays.asList(resources)).
+				buildPartial();
 	}
 
 	public void schedule(long delay, long duration) throws RSBException {
@@ -71,15 +72,8 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 				setBegin(TimestampType.Timestamp.newBuilder().setTime(start)).
 				setEnd(TimestampType.Timestamp.newBuilder().setTime(end));
 
-		this.allocation = ResourceAllocation.newBuilder().
-				setId(UUID.randomUUID().toString().substring(0, 12)).
-				setInitiator(SYSTEM).
-				setState(REQUESTED).
+		this.allocation = ResourceAllocation.newBuilder(this.allocation).
 				setSlot(interval).
-				setPolicy(policy).
-				setPriority(priority).
-				setDescription(description).
-				addResourceIds(resources).
 				build();
 
 		this.result = executor.submit(this);
@@ -92,22 +86,6 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 		return this.result;
 	}
 
-//	public T getResult() throws InterruptedException {
-//		while (this.client.isAlive() && !Thread.interrupted()) {
-//			Thread.sleep(100);
-//		}
-//		if (result == null || result.isCancelled()) {
-//			return null;
-//		} else {
-//			try {
-//				return result.get();
-//			} catch (ExecutionException ex) {
-//				LOG.log(Level.SEVERE, "Execution failed", ex);
-//				return null;
-//			}
-////			return result.isDone();
-//		}
-//	}
 	private void terminateExecution(boolean interrupt) {
 		if (result != null && !result.isDone()) {
 			result.cancel(interrupt);
@@ -201,40 +179,24 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 
 	@Override
 	public String toString() {
-		return getClass().getSimpleName() + ((this.description == null) ? "" : "[" + this.description + "]");
+		return getClass().getSimpleName() + ((this.allocation.getDescription() == null) ? "" : "[" + this.allocation.getDescription() + "]");
 	}
 
 	@Override
-	public void scheduled(ResourceAllocation allocation) {
+	public void allocationUpdated(ResourceAllocation allocation, String cause) {
 		this.allocation = allocation;
-	}
-
-	@Override
-	public void rejected(ResourceAllocation allocation, String cause) {
-		this.allocation = allocation;
-		terminateExecution(false);
-	}
-
-	@Override
-	public void allocated(ResourceAllocation allocation) {
-		this.allocation = allocation;
-	}
-
-	@Override
-	public void cancelled(ResourceAllocation allocation, String cause) {
-		this.allocation = allocation;
-		terminateExecution(false);
-	}
-
-	@Override
-	public void aborted(ResourceAllocation allocation, String cause) {
-		this.allocation = allocation;
-		terminateExecution(true);
-	}
-
-	@Override
-	public void released(ResourceAllocation allocation) {
-		this.allocation = allocation;
-		terminateExecution(true);
+		switch (allocation.getState()) {
+			case SCHEDULED:
+			case ALLOCATED:
+				break;
+			case REJECTED:
+			case CANCELLED:
+				terminateExecution(false);
+				break;
+			case ABORTED:
+			case RELEASED:
+				terminateExecution(true);
+				break;
+		}
 	}
 }

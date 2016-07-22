@@ -25,11 +25,6 @@ import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
  */
 public interface SchedulerListener {
     
-    public void scheduled(ResourceAllocation allocation);
-    public void rejected(ResourceAllocation allocation, String cause);
-    public void allocated(ResourceAllocation allocation);
-    public void cancelled(ResourceAllocation allocation, String cause);
-	public void aborted(ResourceAllocation allocation, String cause);
-    public void released(ResourceAllocation allocation);
+	public void allocationUpdated(ResourceAllocation allocation, String cause);
     
 }
