@@ -186,26 +186,29 @@ public class Allocations {
 		}
 	}
 
-	List<ResourceAllocation> getBlockers(List<String> resources, String id, ResourceAllocation.Priority min) {
+	List<ResourceAllocation> getBlockers(ResourceAllocation allocation) {
 		Map<String, ResourceAllocation> temp = getMap();
-		temp.remove(id);
+		temp.remove(allocation.getId());
 		List<ResourceAllocation> matching = new LinkedList<>();
 		for (ResourceAllocation r : temp.values()) {
 			List<String> res = new LinkedList<>(r.getResourceIdsList());
-			res.retainAll(resources);
-			if (!res.isEmpty() && r.getPriority().compareTo(min) >= 0) {
-				matching.add(r);
+			res.retainAll(allocation.getResourceIdsList());
+			if (!res.isEmpty()) {
+				switch (allocation.getInitiator()) {
+					case HUMAN:
+						if (r.getPriority().compareTo(allocation.getPriority()) > 0) {
+							matching.add(r);
+						}
+						break;
+					case SYSTEM:
+						if (r.getPriority().compareTo(allocation.getPriority()) >= 0) {
+							matching.add(r);
+						}
+						break;
+				}
 			}
 		}
-//		List<ResourceAllocation> matching = temp.values().stream().
-//				filter(allocation
-//						-> allocation.getResourceIds(0).startsWith(resource)
-//						|| resource.startsWith(allocation.getResourceIds(0))
-//				).
-//				filter(allocation
-//						-> allocation.getPriority().compareTo(min) >= 0
-//				).
-//				collect(Collectors.toList());
+
 		matching.removeIf(e -> e.getSlot().getEnd().getTime() < System.currentTimeMillis());
 		matching.sort((l, r) -> {
 			return (int) (l.getSlot().getEnd().getTime() - r.getSlot().getEnd().getTime());
@@ -213,27 +216,29 @@ public class Allocations {
 		return matching;
 	}
 
-	List<ResourceAllocation> getAffected(List<String> resources, String id, ResourceAllocation.Priority min) {
+	List<ResourceAllocation> getAffected(ResourceAllocation allocation) {
 		Map<String, ResourceAllocation> temp = getMap();
-		temp.remove(id);
+		temp.remove(allocation.getId());
 		List<ResourceAllocation> matching = new LinkedList<>();
 		for (ResourceAllocation r : temp.values()) {
 			List<String> res = new LinkedList<>(r.getResourceIdsList());
-			res.retainAll(resources);
-			if (!res.isEmpty() && r.getPriority().compareTo(min) < 0) {
-				matching.add(r);
+			res.retainAll(allocation.getResourceIdsList());
+			if (!res.isEmpty()) {
+				switch (allocation.getInitiator()) {
+					case HUMAN:
+						if (r.getPriority().compareTo(allocation.getPriority()) <= 0) {
+							matching.add(r);
+						}
+						break;
+					case SYSTEM:
+						if (r.getPriority().compareTo(allocation.getPriority()) < 0) {
+							matching.add(r);
+						}
+						break;
+				}
 			}
 		}
 
-//		List<ResourceAllocation> matching = temp.values().stream().
-//				filter(allocation
-//						-> allocation.getResourceIds(0).startsWith(resource)
-//						|| resource.startsWith(allocation.getResourceIds(0))
-//				).
-//				filter(allocation
-//						-> allocation.getPriority().compareTo(min) < 0
-//				).
-//				collect(Collectors.toList());
 		matching.removeIf(e -> e.getSlot().getEnd().getTime() < System.currentTimeMillis());
 		matching.sort((l, r) -> {
 			return (int) (l.getSlot().getEnd().getTime() - r.getSlot().getEnd().getTime());
@@ -242,7 +247,7 @@ public class Allocations {
 	}
 
 	IntervalType.Interval fit(ResourceAllocation allocation) {
-		List<ResourceAllocation> blockers = getBlockers(allocation.getResourceIdsList(), allocation.getId(), allocation.getPriority());
+		List<ResourceAllocation> blockers = getBlockers(allocation);
 		if (!blockers.isEmpty()) {
 			List<IntervalType.Interval> times = blockers.stream().map(b -> b.getSlot()).collect(Collectors.toList());
 			IntervalType.Interval match = null;
@@ -273,7 +278,7 @@ public class Allocations {
 	}
 
 	void updateAffected(ResourceAllocation allocation, String reason) {
-		List<ResourceAllocation> affected = getAffected(allocation.getResourceIdsList(), allocation.getId(), allocation.getPriority());
+		List<ResourceAllocation> affected = getAffected(allocation);
 		for (ResourceAllocation running : affected) {
 			IntervalType.Interval mod = fit(running);
 			ResourceAllocation.Builder builder = ResourceAllocation.newBuilder(running);
