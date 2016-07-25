@@ -137,7 +137,7 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 				"Time",
 				"Resource",
 				dataset,
-				true,
+				false,
 				true,
 				false
 		);
@@ -318,7 +318,7 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 			values.put(resource, channel);
 		}
 
-		if(!series.isEmpty()){
+		if (!series.isEmpty()) {
 			series.clear();
 		}
 		series.addOrUpdate(new Millisecond(new Date(start)), channel);

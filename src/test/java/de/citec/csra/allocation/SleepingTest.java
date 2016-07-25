@@ -10,6 +10,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import rsb.InitializeException;
 import rsb.RSBException;
+import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initiator;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority;
 
@@ -21,7 +22,7 @@ import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Prior
 public class SleepingTest {
 
 	public static void main(String[] args) throws InitializeException, InterruptedException, RSBException, ExecutionException {
-		ExecutableResource sl = new ExecutableResource("descr", Policy.PRESERVE, Priority.NORMAL, "/dev/urandom") {
+		ExecutableResource sl = new ExecutableResource("descr", Policy.PRESERVE, Priority.NORMAL, Initiator.SYSTEM, "/dev/urandom") {
 			@Override
 			public Object execute(long slice) throws ExecutionException {
 				try {

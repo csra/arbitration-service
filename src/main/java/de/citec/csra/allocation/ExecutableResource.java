@@ -28,7 +28,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import rsb.RSBException;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
-import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initiator.SYSTEM;
+import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initiator;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.ABORTED;
@@ -50,10 +50,10 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 	private AllocationClient client;
 	private ResourceAllocation allocation;
 
-	public ExecutableResource(String description, Policy policy, Priority priority, String... resources) {
+	public ExecutableResource(String description, Policy policy, Priority priority, Initiator initiator, String... resources) {
 		this.allocation = ResourceAllocation.newBuilder().
 				setId(UUID.randomUUID().toString().substring(0, 12)).
-				setInitiator(SYSTEM).
+				setInitiator(initiator).
 				setState(REQUESTED).
 				setPolicy(policy).
 				setPriority(priority).
