@@ -1,5 +1,5 @@
-/*
- * Copyright (C) 2016 Patrick Holthaus (<a href=mailto:patrick.holthaus@uni-bielefeld.de>patrick.holthaus@uni-bielefeld.de</a>)
+/* 
+ * Copyright (C) 2016 Bielefeld University, Patrick Holthaus
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
