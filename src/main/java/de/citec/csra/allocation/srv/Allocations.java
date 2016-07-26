@@ -207,8 +207,17 @@ public class Allocations {
 			if (!res.isEmpty()) {
 				switch (allocation.getInitiator()) {
 					case HUMAN:
-						if (r.getPriority().compareTo(allocation.getPriority()) > 0) {
-							matching.add(r);
+						switch (allocation.getState()) {
+							case REQUESTED:
+								if (r.getPriority().compareTo(allocation.getPriority()) > 0) {
+									matching.add(r);
+								}
+								break;
+							case ALLOCATED:
+								if (r.getPriority().compareTo(allocation.getPriority()) >= 0) {
+									matching.add(r);
+								}
+								break;
 						}
 						break;
 					case SYSTEM:
@@ -237,8 +246,16 @@ public class Allocations {
 			if (!res.isEmpty()) {
 				switch (allocation.getInitiator()) {
 					case HUMAN:
-						if (r.getPriority().compareTo(allocation.getPriority()) <= 0) {
-							matching.add(r);
+						switch (allocation.getState()) {
+							case REQUESTED:
+								if (r.getPriority().compareTo(allocation.getPriority()) <= 0) {
+									matching.add(r);
+								}
+								break;
+							case ALLOCATED:
+								if (r.getPriority().compareTo(allocation.getPriority()) < 0) {
+									matching.add(r);
+								}
 						}
 						break;
 					case SYSTEM:
