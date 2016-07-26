@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package de.citec.csra.allocation;
+package de.citec.csra.allocation.cli;
 
 import de.citec.csra.allocation.srv.AllocationServer;
 import java.util.logging.Logger;

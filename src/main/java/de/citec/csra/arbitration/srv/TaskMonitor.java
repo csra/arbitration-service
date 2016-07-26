@@ -17,8 +17,8 @@
 package de.citec.csra.arbitration.srv;
 
 import com.google.protobuf.ByteString;
-import de.citec.csra.allocation.AllocationClient;
-import de.citec.csra.allocation.SchedulerListener;
+import de.citec.csra.allocation.cli.AllocationClient;
+import de.citec.csra.allocation.cli.SchedulerListener;
 import de.citec.csra.arbitration.task.cli.TaskReceiver;
 import java.util.logging.Level;
 import java.util.logging.Logger;
