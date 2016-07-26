@@ -26,9 +26,13 @@ import java.util.logging.Logger;
 import rsb.RSBException;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initiator;
+import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initiator.SYSTEM;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy;
+import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy.MAXIMUM;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State;
+import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.ABORTED;
+import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.ALLOCATED;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.REQUESTED;
 import rst.timing.IntervalType.Interval;
 import rst.timing.TimestampType.Timestamp;
@@ -44,8 +48,14 @@ public class AllocatableResource implements SchedulerListener {
 	private AllocationClient client;
 	private ResourceAllocation allocation;
 	private final BlockingQueue<State> queue = new LinkedBlockingQueue<>();
+	private final boolean reschedule;
 
 	public AllocatableResource(String description, Policy policy, Priority priority, Initiator initiator, String... resources) {
+		this(description, policy, priority, initiator, false, resources);
+	}
+
+	public AllocatableResource(String description, Policy policy, Priority priority, Initiator initiator, boolean reschedule, String... resources) {
+		this.reschedule = reschedule;
 		this.allocation = ResourceAllocation.newBuilder().
 				setId(UUID.randomUUID().toString().substring(0, 12)).
 				setInitiator(initiator).
@@ -77,6 +87,24 @@ public class AllocatableResource implements SchedulerListener {
 		this.client.schedule();
 	}
 
+	private void reschedule() throws RSBException {
+		long now = System.currentTimeMillis();
+		Interval.Builder interval = Interval.newBuilder(this.allocation.getSlot()).
+				setBegin(Timestamp.newBuilder().setTime(now));
+		this.allocation = ResourceAllocation.newBuilder(this.allocation).
+				setId(UUID.randomUUID().toString().substring(0, 12)).
+				setState(REQUESTED).
+				setSlot(interval).
+				setPolicy(MAXIMUM).
+				setInitiator(SYSTEM).
+				build();
+
+		this.queue.add(this.allocation.getState());
+		this.client = new AllocationClient(this.allocation);
+		this.client.addSchedulerListener(this);
+		this.client.schedule();
+	}
+
 	@Override
 	public String toString() {
 		return getClass().getSimpleName() + ((this.allocation.getDescription() == null) ? "" : "[" + this.allocation.getDescription() + "]");
@@ -85,6 +113,13 @@ public class AllocatableResource implements SchedulerListener {
 	@Override
 	public void allocationUpdated(ResourceAllocation allocation, String cause) {
 		this.queue.add(allocation.getState());
+		if (this.reschedule && allocation.getState().equals(ABORTED)) {
+			try {
+				reschedule();
+			} catch (RSBException e) {
+				LOG.log(Level.WARNING, "Rescheduling failed", e);
+			}
+		}
 	}
 
 	public State getState() {
@@ -96,17 +131,17 @@ public class AllocatableResource implements SchedulerListener {
 			Thread.sleep(100);
 		}
 	}
-	
+
 	public void await(State state, long timeout) throws InterruptedException, TimeoutException {
 		long start = System.currentTimeMillis();
 		while (!this.queue.contains(state)) {
-			if(start + timeout < System.currentTimeMillis()){
+			if (start + timeout < System.currentTimeMillis()) {
 				throw new TimeoutException();
 			}
 			Thread.sleep(100);
 		}
 	}
-	
+
 	public void shutdown() throws RSBException {
 		switch (getState()) {
 			case REQUESTED:

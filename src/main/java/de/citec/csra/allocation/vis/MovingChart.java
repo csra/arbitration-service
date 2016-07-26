@@ -79,7 +79,7 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 	private final TimeSeries plustime;
 	private final TimeSeries currenttime;
 	private final int PAST = 10000;
-	private final int FUTURE = 600000;
+	private final int FUTURE = 1800000;
 	/**
 	 * Timer to refresh graph after every 1/4th of a second
 	 */

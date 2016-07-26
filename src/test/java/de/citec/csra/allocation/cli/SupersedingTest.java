@@ -26,10 +26,7 @@ import rsb.RSBException;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initiator.SYSTEM;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy.MAXIMUM;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority.*;
-import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.ALLOCATED;
-import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.RELEASED;
-import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.REQUESTED;
-import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.SCHEDULED;
+import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.*;
 
 /**
  *
