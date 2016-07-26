@@ -41,7 +41,6 @@ import org.jfree.chart.axis.ValueAxis;
 import org.jfree.chart.plot.XYPlot;
 import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer;
 import org.jfree.data.gantt.TaskSeries;
-import org.jfree.data.gantt.TaskSeriesCollection;
 import org.jfree.data.time.Millisecond;
 import org.jfree.data.time.TimeSeries;
 import org.jfree.data.time.TimeSeriesCollection;
@@ -80,13 +79,13 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 	private final TimeSeries plustime;
 	private final TimeSeries currenttime;
 	private final int PAST = 10000;
-	private final int FUTURE = 300000;
+	private final int FUTURE = 600000;
 	/**
 	 * Timer to refresh graph after every 1/4th of a second
 	 */
 	private final Timer timer = new Timer(250, this);
-	TimeSeriesCollection dataset = new TimeSeriesCollection();
-	TaskSeriesCollection categories = new TaskSeriesCollection();
+	private final TimeSeriesCollection dataset = new TimeSeriesCollection();
+//	TaskSeriesCollection categories = new TaskSeriesCollection();
 
 	private int events = 1;
 
@@ -127,7 +126,7 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 		content.add(chartPanel);
 
 		//Sets the size of whole window (JPanel)
-		chartPanel.setPreferredSize(new java.awt.Dimension(800, 500));
+		chartPanel.setPreferredSize(new java.awt.Dimension(1000, 600));
 
 		//Puts the whole content on a Frame
 		setContentPane(content);
@@ -226,38 +225,41 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 	@Override
 	public void actionPerformed(final ActionEvent e) {
 
-		this.plustime.addOrUpdate(new Millisecond(new Date(System.currentTimeMillis() + FUTURE)), 0);
-		this.currenttime.addOrUpdate(new Millisecond(new Date(System.currentTimeMillis())), 0.01);
-		List<TimeSeries> ts = this.dataset.getSeries();
-		List<TimeSeries> del = new LinkedList<>();
-		long now = System.currentTimeMillis();
-		int active = 0;
-		for (TimeSeries t : ts) {
-			if (!t.equals(this.plustime) && !t.equals(this.currenttime)) {
-				List<TimeSeriesDataItem> its = t.getItems();
-				long last = 0;
-				for (TimeSeriesDataItem it : its) {
-					long end = it.getPeriod().getLastMillisecond();
-					if (end > last) {
-						last = end;
+			this.plustime.addOrUpdate(new Millisecond(new Date(System.currentTimeMillis() + FUTURE)), 0);
+			this.currenttime.addOrUpdate(new Millisecond(new Date(System.currentTimeMillis())), 0.01);
+			List<TimeSeries> ts = this.dataset.getSeries();
+			List<TimeSeries> del = new LinkedList<>();
+			long now = System.currentTimeMillis();
+			int active = 0;
+			for (TimeSeries t : ts) {
+				if (!t.equals(this.plustime) && !t.equals(this.currenttime)) {
+					List<TimeSeriesDataItem> its = t.getItems();
+					long last = 0;
+					for (TimeSeriesDataItem it : its) {
+						long end = it.getPeriod().getLastMillisecond();
+						if (end > last) {
+							last = end;
+						}
+					}
+					if (now - last > PAST) {
+						del.add(t);
+					} else {
+						active++;
 					}
 				}
-				if (now - last > PAST) {
-					del.add(t);
-				} else {
-					active++;
+			}
+			
+		synchronized (this.dataset) {
+			if (active == 0) {
+				for (TimeSeries d : del) {
+					this.dataset.removeSeries(d);
 				}
-			}
-		}
-		if (active == 0) {
-			for (TimeSeries d : del) {
-				this.dataset.removeSeries(d);
-			}
-			if (del.size() > 0) {
-				this.chart.getXYPlot().setRenderer(new XYLineAndShapeRenderer(true, false));
-				XYLineAndShapeRenderer r = (XYLineAndShapeRenderer) this.chart.getXYPlot().getRendererForDataset(dataset);
-				r.setSeriesPaint(0, Color.BLACK);
-				r.setSeriesPaint(1, Color.BLUE);
+				if (del.size() > 0) {
+					this.chart.getXYPlot().setRenderer(new XYLineAndShapeRenderer(true, false));
+					XYLineAndShapeRenderer r = (XYLineAndShapeRenderer) this.chart.getXYPlot().getRendererForDataset(dataset);
+					r.setSeriesPaint(0, Color.BLACK);
+					r.setSeriesPaint(1, Color.BLUE);
+				}
 			}
 		}
 	}
@@ -281,65 +283,68 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 	}
 
 	public void updateDataPoints(String id, String resource, long start, long end, State state) {
-		TimeSeries series = this.dataset.getSeries(id);
-		if (series == null) {
-			series = new TimeSeries(id);
-			this.dataset.addSeries(series);
-		}
-
-		int stroke = -1;
-		Color c = null;
-		switch (state) {
-			case REQUESTED:
-				stroke = 1;
-				break;
-			case SCHEDULED:
-				stroke = 3;
-				break;
-			case ALLOCATED:
-				stroke = 9;
-				break;
-			case RELEASED:
-			case REJECTED:
-			case CANCELLED:
-			case ABORTED:
-				c = Color.GRAY;
-				stroke = 1;
-				break;
-
-		}
-
-		XYLineAndShapeRenderer r = (XYLineAndShapeRenderer) this.chart.getXYPlot().getRendererForDataset(dataset);
-
-		int number = -1;
-		for (int i = 0; i < this.dataset.getSeries().size(); i++) {
-			TimeSeries t = this.dataset.getSeries(i);
-			if (t.getKey().equals(id)) {
-				number = i;
+		synchronized (this.dataset) {
+			TimeSeries series = this.dataset.getSeries(id);
+			if (series == null) {
+				series = new TimeSeries(id);
+				this.dataset.addSeries(series);
 			}
-		}
-		if (number > 0) {
-			if (stroke > 0) {
-				r.setSeriesStroke(number, new BasicStroke(stroke));
-			}
-			if (c != null) {
-				r.setSeriesPaint(number, c);
-			}
-		}
-		long channel;
-		if (values.containsKey(resource)) {
-			channel = values.get(resource);
-		} else {
-			channel = events++;
-			values.put(resource, channel);
-		}
 
-		if (!series.isEmpty()) {
-			series.clear();
-		}
-		series.addOrUpdate(new Millisecond(new Date(start)), channel);
-		series.addOrUpdate(new Millisecond(new Date(end)), channel);
+			int stroke = -1;
+			Color c = null;
+			switch (state) {
+				case REQUESTED:
+					stroke = 1;
+					break;
+				case SCHEDULED:
+					stroke = 3;
+					break;
+				case ALLOCATED:
+					stroke = 9;
+					break;
+				case RELEASED:
+					stroke = 1;
+					break;
+				case REJECTED:
+				case CANCELLED:
+				case ABORTED:
+					c = Color.GRAY;
+					stroke = 1;
+					break;
 
+			}
+
+			XYLineAndShapeRenderer r = (XYLineAndShapeRenderer) this.chart.getXYPlot().getRendererForDataset(dataset);
+
+			int number = -1;
+			for (int i = 0; i < this.dataset.getSeries().size(); i++) {
+				TimeSeries t = this.dataset.getSeries(i);
+				if (t.getKey().equals(id)) {
+					number = i;
+				}
+			}
+			if (number > 0) {
+				if (stroke > 0) {
+					r.setSeriesStroke(number, new BasicStroke(stroke));
+				}
+				if (c != null) {
+					r.setSeriesPaint(number, c);
+				}
+			}
+			long channel;
+			if (values.containsKey(resource)) {
+				channel = values.get(resource);
+			} else {
+				channel = events++;
+				values.put(resource, channel);
+			}
+
+			if (!series.isEmpty()) {
+				series.clear();
+			}
+			series.addOrUpdate(new Millisecond(new Date(start)), channel);
+			series.addOrUpdate(new Millisecond(new Date(end)), channel);
+		}
 	}
 
 	@Override
