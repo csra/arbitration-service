@@ -101,9 +101,9 @@ public class Allocations {
 			if (this.allocations.containsKey(id)) {
 				return this.allocations.put(id,
 						ResourceAllocation.
-						newBuilder(this.allocations.get(id)).
-						setState(newState).
-						build());
+								newBuilder(this.allocations.get(id)).
+								setState(newState).
+								build());
 			} else {
 				LOG.log(Level.WARNING, "attempt to modify allocation ''{0}'' ignored, no such allocation available", id);
 				return null;
@@ -116,9 +116,9 @@ public class Allocations {
 			if (this.allocations.containsKey(id)) {
 				return this.allocations.put(id,
 						ResourceAllocation.
-						newBuilder(this.allocations.get(id)).
-						setDescription(this.allocations.get(id).getDescription() + ": " + reason).
-						build());
+								newBuilder(this.allocations.get(id)).
+								setDescription(this.allocations.get(id).getDescription() + ": " + reason).
+								build());
 			} else {
 				LOG.log(Level.WARNING, "attempt to modify allocation ''{0}'' ignored, no such allocation available", id);
 				return null;
@@ -197,32 +197,45 @@ public class Allocations {
 		}
 	}
 
-	List<ResourceAllocation> getBlockers(ResourceAllocation allocation) {
-		Map<String, ResourceAllocation> temp = getMap();
-		temp.remove(allocation.getId());
+	private boolean sharedPrefix(List<String> one, List<String> two) {
+		boolean contains = false;
+		search:
+		for (String a : one) {
+			for (String b : two) {
+				if (b.startsWith(a) || a.startsWith(b)) {
+					contains = true;
+					break search;
+				}
+			}
+		}
+		return contains;
+	}
+
+	List<ResourceAllocation> getBlockers(ResourceAllocation inc) {
+		Map<String, ResourceAllocation> storedMap = getMap();
+		storedMap.remove(inc.getId());
 		List<ResourceAllocation> matching = new LinkedList<>();
-		for (ResourceAllocation r : temp.values()) {
-			List<String> res = new LinkedList<>(r.getResourceIdsList());
-			res.retainAll(allocation.getResourceIdsList());
-			if (!res.isEmpty()) {
-				switch (allocation.getInitiator()) {
+		for (ResourceAllocation stored : storedMap.values()) {
+			boolean shared = sharedPrefix(stored.getResourceIdsList(), inc.getResourceIdsList());
+			if (shared) {
+				switch (inc.getInitiator()) {
 					case HUMAN:
-						switch (allocation.getState()) {
+						switch (inc.getState()) {
 							case REQUESTED:
-								if (r.getPriority().compareTo(allocation.getPriority()) > 0) {
-									matching.add(r);
+								if (stored.getPriority().compareTo(inc.getPriority()) > 0) {
+									matching.add(stored);
 								}
 								break;
 							case ALLOCATED:
-								if (r.getPriority().compareTo(allocation.getPriority()) >= 0) {
-									matching.add(r);
+								if (stored.getPriority().compareTo(inc.getPriority()) >= 0) {
+									matching.add(stored);
 								}
 								break;
 						}
 						break;
 					case SYSTEM:
-						if (r.getPriority().compareTo(allocation.getPriority()) >= 0) {
-							matching.add(r);
+						if (stored.getPriority().compareTo(inc.getPriority()) >= 0) {
+							matching.add(stored);
 						}
 						break;
 				}
@@ -236,31 +249,30 @@ public class Allocations {
 		return matching;
 	}
 
-	List<ResourceAllocation> getAffected(ResourceAllocation allocation) {
-		Map<String, ResourceAllocation> temp = getMap();
-		temp.remove(allocation.getId());
+	List<ResourceAllocation> getAffected(ResourceAllocation inc) {
+		Map<String, ResourceAllocation> storedMap = getMap();
+		storedMap.remove(inc.getId());
 		List<ResourceAllocation> matching = new LinkedList<>();
-		for (ResourceAllocation r : temp.values()) {
-			List<String> res = new LinkedList<>(r.getResourceIdsList());
-			res.retainAll(allocation.getResourceIdsList());
-			if (!res.isEmpty()) {
-				switch (allocation.getInitiator()) {
+		for (ResourceAllocation stored : storedMap.values()) {
+			boolean shared = sharedPrefix(stored.getResourceIdsList(), inc.getResourceIdsList());
+			if (shared) {
+				switch (inc.getInitiator()) {
 					case HUMAN:
-						switch (allocation.getState()) {
+						switch (inc.getState()) {
 							case REQUESTED:
-								if (r.getPriority().compareTo(allocation.getPriority()) <= 0) {
-									matching.add(r);
+								if (stored.getPriority().compareTo(inc.getPriority()) <= 0) {
+									matching.add(stored);
 								}
 								break;
 							case ALLOCATED:
-								if (r.getPriority().compareTo(allocation.getPriority()) < 0) {
-									matching.add(r);
+								if (stored.getPriority().compareTo(inc.getPriority()) < 0) {
+									matching.add(stored);
 								}
 						}
 						break;
 					case SYSTEM:
-						if (r.getPriority().compareTo(allocation.getPriority()) < 0) {
-							matching.add(r);
+						if (stored.getPriority().compareTo(inc.getPriority()) < 0) {
+							matching.add(stored);
 						}
 						break;
 				}
