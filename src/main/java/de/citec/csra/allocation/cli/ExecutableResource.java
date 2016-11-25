@@ -120,7 +120,7 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 		}
 	}
 
-	public abstract T execute(long slice) throws ExecutionException;
+	public abstract T execute(long slice) throws ExecutionException, InterruptedException;
 
 	@Override
 	public T call() {
@@ -150,15 +150,16 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 		long start = this.allocation.getSlot().getBegin().getTime();
 		long end = this.allocation.getSlot().getEnd().getTime();
 		long now = System.currentTimeMillis();
-
+		long slice = Math.min(100, end - now);
+		
 		if (start > now) {
 			LOG.log(Level.WARNING, "permission to run in the future, starting anyways.");
 		}
 
 		T res = null;
 		try {
-			LOG.log(Level.FINE, "Starting user code execution for {0}ms.", (end - now));
-			res = execute(end - now);
+			LOG.log(Level.FINE, "Starting user code execution for {0}ms.", slice);
+			res = execute(slice);
 			LOG.log(Level.FINE, "User code execution returned with ''{0}''", res);
 			try {
 				this.client.release();
@@ -166,7 +167,14 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 				LOG.log(Level.WARNING, "Could not release resources", ex);
 			}
 		} catch (ExecutionException ex) {
-			LOG.log(Level.WARNING, "Use code execution failed", ex);
+			LOG.log(Level.WARNING, "User code execution failed", ex);
+			try {
+				this.client.abort();
+			} catch (RSBException ex1) {
+				LOG.log(Level.WARNING, "Could not abort resources", ex1);
+			}
+		} catch (InterruptedException ex) {
+			LOG.log(Level.FINER, "User code interrupted", ex);
 			try {
 				this.client.abort();
 			} catch (RSBException ex1) {
