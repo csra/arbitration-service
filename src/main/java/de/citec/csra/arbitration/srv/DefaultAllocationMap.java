@@ -38,6 +38,7 @@ public class DefaultAllocationMap {
 
 	private Properties resourceProperties;
 	private Properties handlerProperties;
+	private Properties scxmlProperties;
 	private Properties durationProperties;
 
 	private DefaultAllocationMap() {
@@ -62,6 +63,10 @@ public class DefaultAllocationMap {
 
 	public String getHandler(String key) {
 		return this.handlerProperties.getProperty(key);
+	}
+	
+	public String getSCXML(String key) {
+		return this.scxmlProperties.getProperty(key);
 	}
 
 	public Long getDuration(String key) {
@@ -113,6 +118,12 @@ public class DefaultAllocationMap {
 		} catch (IOException ex) {
 			Logger.getLogger(DefaultAllocationMap.class.getName()).log(Level.SEVERE, null, ex);
 		}
+		try (FileOutputStream os = new FileOutputStream("src/main/resources/etc/coordination/scxml.properties")) {
+			handlerProperties.store(os, "auto-saved");
+			os.close();
+		} catch (IOException ex) {
+			Logger.getLogger(DefaultAllocationMap.class.getName()).log(Level.SEVERE, null, ex);
+		}
 		try (FileOutputStream os = new FileOutputStream("src/main/resources/etc/coordination/durations.properties")) {
 			durationProperties.store(os, "auto-saved");
 			os.close();
@@ -139,6 +150,13 @@ public class DefaultAllocationMap {
 			Logger.getLogger(DefaultAllocationMap.class.getName()).log(Level.SEVERE, null, ex);
 		}
 
+		scxmlProperties = new Properties();
+		try (FileInputStream is = new FileInputStream("src/main/resources/etc/coordination/scxml.properties")) {
+			scxmlProperties.load(is);
+		} catch (IOException ex) {
+			Logger.getLogger(DefaultAllocationMap.class.getName()).log(Level.SEVERE, null, ex);
+		}
+		
 		handlerProperties = new Properties();
 		try (FileInputStream is = new FileInputStream("src/main/resources/etc/coordination/handlers.properties")) {
 			handlerProperties.load(is);

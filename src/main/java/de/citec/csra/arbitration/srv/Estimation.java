@@ -42,6 +42,7 @@ public class Estimation {
 
 	private Set<String> resources;
 	private String handler;
+	private String scxml;
 
 	private int count;
 	private long duration;
@@ -51,6 +52,7 @@ public class Estimation {
 		this.submitter = submitter;
 		initBuilder();
 		initHandler();
+		initSCXML();
 		initDuration();
 		initResources();
 	}
@@ -70,6 +72,18 @@ public class Estimation {
 			this.handler = stored;
 		} else {
 			setHandler(this.submitter.replaceAll(ArbitrationServer.getScope(), ""));
+		}
+	}
+	
+	private void initSCXML() {
+		String stored = DefaultAllocationMap.getInstance().getSCXML(this.submitter);
+		if (stored != null) {
+			this.scxml = stored;
+		} else {
+			setHandler(this.submitter.
+					replaceAll("coordination", "").
+					replaceAll("scenario", "").
+					replaceAll("/", ""));
 		}
 	}
 
@@ -94,6 +108,10 @@ public class Estimation {
 
 	public String getHandler() {
 		return handler;
+	}
+	
+	public String getSCXML() {
+		return scxml;
 	}
 
 	public ResourceAllocation getResources() {
@@ -132,5 +150,9 @@ public class Estimation {
 		this.handler = handler;
 		DefaultAllocationMap.getInstance().setHandler(this.submitter, this.handler);
 	}
-
+	
+	void setSCXML(String scxml) {
+		this.scxml = scxml;
+		DefaultAllocationMap.getInstance().setHandler(this.submitter, this.scxml);
+	}
 }
