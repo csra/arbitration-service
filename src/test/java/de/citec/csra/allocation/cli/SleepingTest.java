@@ -21,9 +21,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import rsb.InitializeException;
 import rsb.RSBException;
+import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.*;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initiator;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority;
+
 
 /**
  *
@@ -37,13 +39,13 @@ public class SleepingTest {
 			@Override
 			public Object execute(long slice) throws ExecutionException {
 				try {
-					Thread.sleep(slice);
+					Thread.sleep(slice + 100);
 					return "slept well";
 				} catch (InterruptedException ex) {
 					Logger.getLogger(SleepingTest.class.getName()).log(Level.SEVERE, "client interrupted", ex);
-					Thread.currentThread().interrupt();
+//					Thread.currentThread().interrupt();
+					return "what a night 0_o";
 				}
-				return "what a night 0_o";
 			}
 		};
 		sl.schedule(0, 4000);
