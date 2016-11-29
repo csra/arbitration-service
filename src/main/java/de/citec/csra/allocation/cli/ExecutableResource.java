@@ -71,7 +71,7 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 		IntervalType.Interval.Builder interval = IntervalType.Interval.newBuilder().
 				setBegin(TimestampType.Timestamp.newBuilder().setTime(start)).
 				setEnd(TimestampType.Timestamp.newBuilder().setTime(end));
-
+		
 		this.allocation = ResourceAllocation.newBuilder(this.allocation).
 				setSlot(interval).
 				build();
@@ -150,7 +150,7 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 		long start = this.allocation.getSlot().getBegin().getTime();
 		long end = this.allocation.getSlot().getEnd().getTime();
 		long now = System.currentTimeMillis();
-		long slice = Math.min(100, end - now);
+		long slice = Math.max(100, end - now);
 		
 		if (start > now) {
 			LOG.log(Level.WARNING, "permission to run in the future, starting anyways.");
