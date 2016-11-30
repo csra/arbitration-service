@@ -18,8 +18,7 @@ package de.citec.csra.allocation.cli;
 
 import java.util.Arrays;
 import java.util.UUID;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -47,7 +46,7 @@ public class AllocatableResource implements SchedulerListener {
 	private final static Logger LOG = Logger.getLogger(ExecutableResource.class.getName());
 	private AllocationClient client;
 	private ResourceAllocation allocation;
-	private final BlockingQueue<State> queue = new LinkedBlockingQueue<>();
+	private final LinkedBlockingDeque<State> queue = new LinkedBlockingDeque<>();
 	private final boolean reschedule;
 
 	public AllocatableResource(String description, Policy policy, Priority priority, Initiator initiator, String... resources) {
@@ -123,7 +122,7 @@ public class AllocatableResource implements SchedulerListener {
 	}
 
 	public State getState() {
-		return this.queue.peek();
+		return this.queue.peekLast();
 	}
 
 	public void await(State state) throws InterruptedException {
