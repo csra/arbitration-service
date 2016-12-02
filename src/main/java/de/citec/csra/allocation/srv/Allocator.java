@@ -25,7 +25,7 @@ public class Allocator {
 	public static void main(String[] args) throws Exception {
 		AllocationServer a = AllocationServer.getInstance();
 		a.activate();
-		a.waitForShutdown();
+		a.listen();
 		a.deactivate();
 	}
 }

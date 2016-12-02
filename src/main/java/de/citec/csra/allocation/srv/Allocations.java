@@ -78,7 +78,7 @@ public class Allocations {
 						return true;
 				}
 			} else {
-				LOG.log(Level.WARNING, "attempt to check alive state for allocation ''{0}'' ignored, no such allocation available", id);
+				LOG.log(Level.FINEST, "attempt to check alive state for allocation ''{0}'' ignored, no such allocation available", id);
 			}
 			return false;
 		}
@@ -90,7 +90,7 @@ public class Allocations {
 				ResourceAllocation a = this.allocations.get(id);
 				return a;
 			} else {
-				LOG.log(Level.WARNING, "attempt to query for allocation ''{0}'' ignored, no such allocation available", id);
+				LOG.log(Level.FINEST, "attempt to query for allocation ''{0}'' ignored, no such allocation available", id);
 			}
 			return null;
 		}
@@ -126,9 +126,60 @@ public class Allocations {
 		}
 	}
 
-	public boolean request(ResourceAllocation allocation) {
-		LOG.log(Level.INFO, "Allocation requested: {0}", allocation.toString().replaceAll("\n", " "));
+	public boolean handle(ResourceAllocation incoming) {
+		ResourceAllocation current = get(incoming.getId());
+		State currentState = (current != null) ? current.getState() : null;
+		State incomingState = incoming.getState();
+		String incomingStr = incoming.toString().replaceAll("\n", " ");
 
+		synchronized (this.allocations) {
+			switch (incomingState) {
+				case REQUESTED:
+					if (currentState == null) {
+						LOG.log(Level.INFO,
+								"Performing client-requested state transition ''{0}'' -> ''{1}'' ({2})",
+								new Object[]{currentState, incomingState, incomingStr});
+						return request(incoming);
+					}
+					break;
+				case CANCELLED:
+					if (currentState != null && currentState.equals(SCHEDULED)) {
+						LOG.log(Level.INFO,
+								"Performing client-requested state transition ''{0}'' -> ''{1}'' ({2})",
+								new Object[]{currentState, incomingState, incomingStr});
+						return finalize(incoming, "client request");
+					}
+					break;
+				case ABORTED:
+				case RELEASED:
+					if (currentState != null && currentState.equals(ALLOCATED)) {
+						LOG.log(Level.INFO,
+								"Performing client-requested state transition ''{0}'' -> ''{1}'' ({2})",
+								new Object[]{currentState, incomingState, incomingStr});
+						return finalize(incoming, "client request");
+					}
+					break;
+				case ALLOCATED:
+				case SCHEDULED:
+					if (currentState != null && currentState.equals(incoming.getState())) {
+						LOG.log(Level.INFO,
+								"Performing client-requested state transition ''{0}'' -> ''{1}'' ({2})",
+								new Object[]{currentState, incomingState, incomingStr});
+						return modify(incoming);
+					}
+					break;
+				case REJECTED:
+				default:
+					break;
+			}
+			LOG.log(Level.WARNING,
+					"Illegal client-requested state transition ''{0}'' -> ''{1}'', ignoring ({2})",
+					new Object[]{currentState, incomingState, incomingStr});
+			return false;
+		}
+	}
+
+	boolean request(ResourceAllocation allocation) {
 		synchronized (this.allocations) {
 			this.allocations.put(allocation.getId(), allocation);
 			this.notifications.init(allocation.getId());
@@ -136,17 +187,40 @@ public class Allocations {
 
 		IntervalType.Interval match = fit(allocation);
 		if (match == null) {
-			LOG.log(Level.INFO, "Requested allocation failed (slot not available): {0}", allocation.toString().replaceAll("\n", " "));
-			reject(allocation, "no slot available");
+			LOG.log(Level.FINER, "Allocation request failed (slot not available): {0}", allocation.toString().replaceAll("\n", " "));
+			reject(allocation, "slot not available");
 			return false;
 		} else {
+			LOG.log(Level.FINER, "Allocation request successful: {0}", allocation.toString().replaceAll("\n", " "));
 			allocation = ResourceAllocation.newBuilder(allocation).setSlot(match).build();
 			schedule(allocation);
 			return true;
 		}
 	}
 
+	boolean modify(ResourceAllocation allocation) {
+		synchronized (this.allocations) {
+			if (isAlive(allocation.getId())) {
+				IntervalType.Interval match = fit(allocation);
+				if (match == null) {
+					LOG.log(Level.FINER, "Allocation modification failed (slot not available): {0}", allocation.toString().replaceAll("\n", " "));
+					update(get(allocation.getId()), "slot not available");
+					return false;
+				} else {
+					LOG.log(Level.FINER, "Allocation modification successful: {0}", allocation.toString().replaceAll("\n", " "));
+					allocation = ResourceAllocation.newBuilder(allocation).setSlot(match).build();
+					update(allocation, "modification successful");
+					return true;
+				}
+			} else {
+				LOG.log(Level.WARNING, "attempt to modify allocation ''{0}'' ignored, no such allocation active", allocation.getId());
+				return false;
+			}
+		}
+	}
+
 	void schedule(ResourceAllocation allocation) {
+		LOG.log(Level.FINE, "Scheduling: {0}", allocation.toString().replaceAll("\n", " "));
 		updateAffected(allocation, "slot superseded");
 		synchronized (this.allocations) {
 			if (isAlive(allocation.getId())) {
@@ -160,6 +234,7 @@ public class Allocations {
 	}
 
 	void reject(ResourceAllocation allocation, String reason) {
+		LOG.log(Level.FINE, "Rejecting: {0}", allocation.toString().replaceAll("\n", " "));
 		synchronized (this.allocations) {
 			if (isAlive(allocation.getId())) {
 				setState(allocation.getId(), REJECTED);
@@ -173,31 +248,39 @@ public class Allocations {
 	}
 
 	void update(ResourceAllocation allocation, String reason) {
+		LOG.log(Level.FINE, "Updating: {0}", allocation.toString().replaceAll("\n", " "));
 		synchronized (this.allocations) {
 			if (isAlive(allocation.getId())) {
 				this.allocations.put(allocation.getId(), allocation);
-				setReason(allocation.getId(), reason);
+				if (reason != null) {
+					setReason(allocation.getId(), reason);
+				}
 				this.notifications.update(allocation.getId(), true);
-				this.allocations.remove(allocation.getId());
 			} else {
 				LOG.log(Level.WARNING, "attempt to update allocation ''{0}'' ignored, no such allocation active", allocation.getId());
 			}
 		}
 	}
 
-	public void finalize(ResourceAllocation allocation) {
+	boolean finalize(ResourceAllocation allocation, String reason) {
+		LOG.log(Level.FINE, "Finalizing: {0}", allocation.toString().replaceAll("\n", " "));
 		synchronized (this.allocations) {
 			if (isAlive(allocation.getId())) {
 				this.allocations.put(allocation.getId(), allocation);
+				if (reason != null) {
+					setReason(allocation.getId(), reason);
+				}
 				this.notifications.update(allocation.getId(), false);
 				this.allocations.remove(allocation.getId());
+				return true;
 			} else {
 				LOG.log(Level.WARNING, "attempt to release allocation ''{0}'' ignored, no such allocation active", allocation.getId());
+				return false;
 			}
 		}
 	}
 
-	private boolean sharedPrefix(List<String> one, List<String> two) {
+	boolean sharedPrefix(List<String> one, List<String> two) {
 		boolean contains = false;
 		search:
 		for (String a : one) {
@@ -332,7 +415,7 @@ public class Allocations {
 						builder.setState(ABORTED);
 						break;
 				}
-				update(builder.build(), reason);
+				finalize(builder.build(), reason);
 			} else if (!mod.equals(running.getSlot())) {
 				builder.setSlot(mod);
 				update(builder.build(), reason);

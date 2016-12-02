@@ -78,26 +78,12 @@ public class AllocationServer {
 		return instance;
 	}
 
-	public void waitForShutdown() throws InterruptedException {
+	public void listen() throws InterruptedException {
 		LOG.log(Level.INFO, "Allocation service listening at ''{0}''.", this.listener.getScope());
 		while (this.listener.isActive()) {
-			ResourceAllocation a = this.queue.take();
-			switch (a.getState()) {
-				case REQUESTED:
-					Allocations.getInstance().request(a);
-					break;
-				case CANCELLED:
-				case ABORTED:
-				case RELEASED:
-					Allocations.getInstance().finalize(a);
-					break;
-				case ALLOCATED:
-				case REJECTED:
-				case SCHEDULED:
-					LOG.log(Level.WARNING, "''{0}'' illegal request ''{1}'', ignoring ({2})", new String[]{a.getId(), a.getState().name(), a.toString().replaceAll("\n", " ")});
-					break;
-			}
-
+			ResourceAllocation incoming = this.queue.take();
+			LOG.log(Level.FINE, "Received client update ''{0}''.", incoming.toString().replaceAll("\n", " "));
+			Allocations.getInstance().handle(incoming);
 		}
 	}
 
