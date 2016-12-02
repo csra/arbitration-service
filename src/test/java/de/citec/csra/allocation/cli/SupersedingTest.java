@@ -44,7 +44,7 @@ public class SupersedingTest {
 			try {
 				AllocationServer a = AllocationServer.getInstance();
 				a.activate();
-				a.waitForShutdown();
+				a.listen();
 			} catch (InterruptedException | RSBException ex) {
 				fail("Exception in server thread: " + ex);
 			}
@@ -54,8 +54,8 @@ public class SupersedingTest {
 
 	@Test
 	public void testSchedule() throws InitializeException, RSBException, InterruptedException, TimeoutException {
-		AllocatableResource res = new AllocatableResource("Original", MAXIMUM, NORMAL, SYSTEM, "some-resource");
-		res.schedule(2000, 1000);
+		AllocatableResource res = new AllocatableResource("Original", MAXIMUM, NORMAL, SYSTEM, 2000, 1000, "some-resource");
+		res.startup();
 		res.await(REQUESTED, 1000);
 		res.await(SCHEDULED, 1000);
 		res.await(ALLOCATED, 3000);
@@ -64,11 +64,11 @@ public class SupersedingTest {
 
 	@Test
 	public void testNonConflict() throws InitializeException, RSBException, InterruptedException, TimeoutException {
-		AllocatableResource some = new AllocatableResource("Some", MAXIMUM, NORMAL, SYSTEM, "some-resource");
-		AllocatableResource other = new AllocatableResource("Other", MAXIMUM, NORMAL, SYSTEM, "other-resource");
+		AllocatableResource some = new AllocatableResource("Some", MAXIMUM, NORMAL, SYSTEM, 0, 5000, "some-resource");
+		AllocatableResource other = new AllocatableResource("Other", MAXIMUM, NORMAL, SYSTEM, 0, 5000, "other-resource");
 		
-		some.schedule(0, 5000);
-		other.schedule(0, 5000);
+		some.startup();
+		other.startup();
 		
 		some.await(REQUESTED, 1000);
 		other.await(REQUESTED, 1000);
