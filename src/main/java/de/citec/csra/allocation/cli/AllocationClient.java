@@ -28,6 +28,7 @@ import rsb.util.QueueAdapter;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.*;
+import rst.timing.IntervalType.Interval;
 
 /**
  *
@@ -104,20 +105,40 @@ public class AllocationClient implements SchedulerController {
 
 	@Override
 	public void abort() throws RSBException {
-		updateRemote(ABORTED);
+		updateState(ABORTED);
 	}
 
 	@Override
 	public void release() throws RSBException {
-		updateRemote(RELEASED);
+		updateState(RELEASED);
 	}
 
 	@Override
 	public void cancel() throws RSBException {
-		updateRemote(CANCELLED);
+		updateState(CANCELLED);
 	}
 
-	private void updateRemote(State newState) throws RSBException {
+	public void updateSlot(Interval interval) throws RSBException {
+		if (isAlive()) {
+			ResourceAllocation update = ResourceAllocation.newBuilder(this.allocation).setSlot(interval).build();
+			this.allocation = update;
+			if(!this.allocation.getState().equals(REQUESTED)){
+				LOG.log(Level.FINE,
+					"attempting client allocation slot change ''{0}'' -> ''{1}'' ({2})",
+					new Object[]{
+						allocation.getSlot().toString().replaceAll("\n", " "),
+						interval.toString().replaceAll("\n", " "),
+						update.toString().replaceAll("\n", " ")});
+				this.remoteService.update(this.allocation);
+			}
+		} else {
+			LOG.log(Level.FINE,
+					"resource allocation not active anymore ({0}), skipping client allocation slot change ({1}) for: ''{2}''",
+					new Object[]{allocation.getState(), interval.toString().replaceAll("\n", " "), allocation.toString().replaceAll("\n", " ")});
+		}
+	}
+
+	private void updateState(State newState) throws RSBException {
 		if (isAlive()) {
 			ResourceAllocation update = ResourceAllocation.newBuilder(this.allocation).setState(newState).build();
 			try {
