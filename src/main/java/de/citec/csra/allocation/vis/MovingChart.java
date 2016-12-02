@@ -31,6 +31,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
@@ -52,6 +53,7 @@ import rsb.Event;
 import rsb.Factory;
 import rsb.Handler;
 import rsb.Listener;
+import rsb.RSBException;
 import rsb.converter.DefaultConverterRepository;
 import rsb.converter.ProtocolBufferConverter;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
@@ -225,30 +227,30 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 	@Override
 	public void actionPerformed(final ActionEvent e) {
 
-			this.plustime.addOrUpdate(new Millisecond(new Date(System.currentTimeMillis() + FUTURE)), 0);
-			this.currenttime.addOrUpdate(new Millisecond(new Date(System.currentTimeMillis())), 0.01);
-			List<TimeSeries> ts = this.dataset.getSeries();
-			List<TimeSeries> del = new LinkedList<>();
-			long now = System.currentTimeMillis();
-			int active = 0;
-			for (TimeSeries t : ts) {
-				if (!t.equals(this.plustime) && !t.equals(this.currenttime)) {
-					List<TimeSeriesDataItem> its = t.getItems();
-					long last = 0;
-					for (TimeSeriesDataItem it : its) {
-						long end = it.getPeriod().getLastMillisecond();
-						if (end > last) {
-							last = end;
-						}
-					}
-					if (now - last > PAST) {
-						del.add(t);
-					} else {
-						active++;
+		this.plustime.addOrUpdate(new Millisecond(new Date(System.currentTimeMillis() + FUTURE)), 0);
+		this.currenttime.addOrUpdate(new Millisecond(new Date(System.currentTimeMillis())), 0.01);
+		List<TimeSeries> ts = this.dataset.getSeries();
+		List<TimeSeries> del = new LinkedList<>();
+		long now = System.currentTimeMillis();
+		int active = 0;
+		for (TimeSeries t : ts) {
+			if (!t.equals(this.plustime) && !t.equals(this.currenttime)) {
+				List<TimeSeriesDataItem> its = t.getItems();
+				long last = 0;
+				for (TimeSeriesDataItem it : its) {
+					long end = it.getPeriod().getLastMillisecond();
+					if (end > last) {
+						last = end;
 					}
 				}
+				if (now - last > PAST) {
+					del.add(t);
+				} else {
+					active++;
+				}
 			}
-			
+		}
+
 		synchronized (this.dataset) {
 			if (active == 0) {
 				for (TimeSeries d : del) {
@@ -269,7 +271,7 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 	 *
 	 * @param args ignored.
 	 */
-	public static void main(final String[] args) throws Exception {
+	public static void main(final String[] args) throws InterruptedException, RSBException {
 
 		final MovingChart demo = new MovingChart("Resource Allocation Chart");
 		Listener l = Factory.getInstance().createListener(AllocationServer.getScope());
@@ -351,14 +353,26 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 	public void internalNotify(Event event) {
 		if (event.getData() instanceof ResourceAllocation) {
 			ResourceAllocation update = (ResourceAllocation) event.getData();
+			SwingUtilities.invokeLater(new Updater(update));
+		}
+	}
+
+	private class Updater implements Runnable {
+
+		private final ResourceAllocation update;
+
+		public Updater(ResourceAllocation update) {
+			this.update = update;
+		}
+
+		@Override
+		public void run() {
 			long start = update.getSlot().getBegin().getTime();
 			long end = update.getSlot().getEnd().getTime();
 			for (String resource : update.getResourceIdsList()) {
 				String label = update.getDescription().replaceAll(":.*", "") + " (" + update.getId().substring(0, 4) + ")";
 				updateDataPoints(label, resource, start, end, update.getState());
 			}
-
 		}
 	}
-
 }
