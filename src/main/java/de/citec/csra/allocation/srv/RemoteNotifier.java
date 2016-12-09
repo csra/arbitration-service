@@ -40,12 +40,12 @@ public class RemoteNotifier implements Runnable {
 		this.informer = informer;
 		this.id = id;
 	}
-	
-	private ResourceAllocation get(){
+
+	private ResourceAllocation get() {
 		return Allocations.getInstance().get(id);
 	}
-	
-	private boolean isAlive(){
+
+	private boolean isAlive() {
 		return Allocations.getInstance().isAlive(id);
 	}
 
@@ -76,67 +76,66 @@ public class RemoteNotifier implements Runnable {
 		}
 	}
 
-
 	@Override
 	public void run() {
-		try{
-		if (!isAlive()) {
-			return;
-		}
-
-		long max = System.currentTimeMillis() + 2000;
-		boolean scheduled = false;
-		while (System.currentTimeMillis() < max && !scheduled) {
+		try {
 			if (!isAlive()) {
 				return;
 			}
-			scheduled = get().getState().equals(SCHEDULED);
-			try {
-				Thread.sleep(this.interval);
-			} catch (InterruptedException ex) {
-				LOG.log(Level.WARNING, "Interrupted");
-				Thread.currentThread().interrupt();
-			}
-		}
-		if (!scheduled) {
-			Allocations.getInstance().setState(this.id, REJECTED);
-			publish();
-			return;
-		}
 
-		try {
-			while ((scheduled = isAlive()) && System.currentTimeMillis() < get().getSlot().getBegin().getTime()) {
-				Thread.sleep(this.interval);
-			}
-			if (!scheduled) {
-				return;
-			}
-			Allocations.getInstance().setState(this.id, ALLOCATED);
-			publish();
-
-			try {
-				while (isAlive() && System.currentTimeMillis() < get().getSlot().getEnd().getTime()) {
-					Thread.sleep(this.interval);
-				}
+			long max = System.currentTimeMillis() + 2000;
+			boolean scheduled = false;
+			while (System.currentTimeMillis() < max && !scheduled) {
 				if (!isAlive()) {
 					return;
 				}
-				Allocations.getInstance().setState(this.id, RELEASED);
+				scheduled = get().getState().equals(SCHEDULED);
+				try {
+					Thread.sleep(this.interval);
+				} catch (InterruptedException ex) {
+					LOG.log(Level.WARNING, "Interrupted");
+					Thread.currentThread().interrupt();
+				}
+			}
+			if (!scheduled) {
+				Allocations.getInstance().setState(this.id, REJECTED);
+				publish();
+				return;
+			}
+
+			try {
+				while ((scheduled = isAlive()) && System.currentTimeMillis() < get().getSlot().getBegin().getTime()) {
+					Thread.sleep(this.interval);
+				}
+				if (!scheduled) {
+					return;
+				}
+				Allocations.getInstance().setState(this.id, ALLOCATED);
 				publish();
 
+				try {
+					while (isAlive() && System.currentTimeMillis() < get().getSlot().getEnd().getTime()) {
+						Thread.sleep(this.interval);
+					}
+					if (!isAlive()) {
+						return;
+					}
+					Allocations.getInstance().setState(this.id, RELEASED);
+					publish();
+
+				} catch (InterruptedException interex) {
+					LOG.log(Level.WARNING, "Interrupted in ''{0}'' state, aborting: ", new String[]{get().getState().name(), get().toString().replaceAll("\n", " ")});
+					Allocations.getInstance().setState(this.id, ABORTED);
+					publish();
+					Thread.currentThread().interrupt();
+				}
 			} catch (InterruptedException interex) {
 				LOG.log(Level.WARNING, "Interrupted in ''{0}'' state, aborting: ", new String[]{get().getState().name(), get().toString().replaceAll("\n", " ")});
-				Allocations.getInstance().setState(this.id, ABORTED);
+				Allocations.getInstance().setState(this.id, CANCELLED);
 				publish();
 				Thread.currentThread().interrupt();
 			}
-		} catch (InterruptedException interex) {
-			LOG.log(Level.WARNING, "Interrupted in ''{0}'' state, aborting: ", new String[]{get().getState().name(), get().toString().replaceAll("\n", " ")});
-			Allocations.getInstance().setState(this.id, CANCELLED);
-				publish();
-			Thread.currentThread().interrupt();
-		}
-		}catch(Exception e){
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
