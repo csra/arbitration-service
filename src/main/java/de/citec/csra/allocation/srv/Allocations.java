@@ -396,7 +396,11 @@ public class Allocations {
 			}
 			return match;
 		} else {
-			return allocation.getSlot();
+			if (allocation.getState().equals(ALLOCATED)) {
+				return IntervalUtils.includeNow(allocation.getSlot());
+			} else {
+				return allocation.getSlot();
+			}
 		}
 	}
 

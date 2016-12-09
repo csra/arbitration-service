@@ -96,6 +96,10 @@ public class IntervalUtils {
 		return fromT4j(findComplete(fromRst(goal), fromRst(range), fromRst(blocks)));
 	}
 
+	public static Interval includeNow(Interval goal) {
+		return fromT4j(includeNow(fromRst(goal)));
+	}
+
 	public static MomentInterval findFirst(MomentInterval g, MomentInterval r, List<MomentInterval> b) {
 
 		IntervalCollection<Moment> blocking = IntervalCollection.onMomentAxis().plus(b);
@@ -144,7 +148,7 @@ public class IntervalUtils {
 		IntervalCollection<Moment> overlaps = free.intersect(goal);
 
 		if (!overlaps.isEmpty()) {
-			return (MomentInterval) overlaps.getIntervals().stream().min(BY_BEGIN).get();
+			return includeNow((MomentInterval) overlaps.getIntervals().stream().min(BY_BEGIN).get());
 		}
 		return null;
 	}
@@ -164,7 +168,20 @@ public class IntervalUtils {
 		}
 		return null;
 	}
-	
+
+	public static MomentInterval includeNow(MomentInterval g) {
+		Moment now = Moment.from(Instant.now());
+		if (g.contains(now)) {
+			return g;
+		} else {
+			if (g.isAfter(now)) {
+				return g.withStart(now);
+			} else {
+				return g.withEnd(now);
+			}
+		}
+	}
+
 	@Deprecated
 	public static ResourceAllocation shift(ResourceAllocation prototype, long start, long end) {
 		IntervalType.Interval.Builder interval = IntervalType.Interval.newBuilder().
