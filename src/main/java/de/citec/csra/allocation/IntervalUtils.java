@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package de.citec.csra.allocation.srv;
+package de.citec.csra.allocation;
 
 import java.time.Instant;
 import java.util.Comparator;
@@ -48,6 +48,19 @@ public class IntervalUtils {
 			long length2 = m2.getRealDuration().getSeconds() * 1000000000 + m2.getRealDuration().getFraction();
 			return (int) (length1 - length2);
 		}
+	}
+
+	public static Interval buildRelativeRst(long delay, long duration) {
+		long now = System.currentTimeMillis();
+		long start = now + delay;
+		long end = start + duration;
+		return buildRst(start, end);
+	}
+
+	public static Interval buildRst(long begin, long end) {
+		return Interval.newBuilder().
+				setBegin(Timestamp.newBuilder().setTime(begin)).
+				setEnd(Timestamp.newBuilder().setTime(end)).build();
 	}
 
 	private final static Comparator<ChronoInterval<Moment>> BY_LENGTH = new LengthComparator();
