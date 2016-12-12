@@ -21,7 +21,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import rsb.InitializeException;
 import rsb.RSBException;
-import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.*;
+import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initiator;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority;
@@ -35,22 +35,38 @@ import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Prior
 public class SleepingTest {
 
 	public static void main(String[] args) throws InitializeException, InterruptedException, RSBException, ExecutionException {
-		ExecutableResource sl = new ExecutableResource("descr", Policy.PRESERVE, Priority.NORMAL, Initiator.SYSTEM, "/dev/urandom") {
+		ExecutableResource sl = new ExecutableResource("descr", Policy.PRESERVE, Priority.NORMAL, Initiator.SYSTEM, 0, 2000, "/dev/urandom") {
+			
 			@Override
-			public Object execute(long slice) throws ExecutionException {
+			public Object execute() throws ExecutionException, InterruptedException {
 				try {
-					Thread.sleep(slice + 100);
-					return "slept well";
+					System.out.println("Starting with " + remaining() + "ms.");
+					long start = System.currentTimeMillis();
+					long amount = 0;
+					for(int i = 0; i < 20; i++){
+						Thread.sleep(500);
+						long now = System.currentTimeMillis();
+						shiftTo(now);
+						amount = now - start;
+						System.out.println("Already slept for " + amount +  "ms. Time remaining: " + remaining() + "ms.");
+					}
+					Thread.sleep(remaining());
+					return "Slept for " + (System.currentTimeMillis() - start) +  "ms in total.";
 				} catch (InterruptedException ex) {
 					Logger.getLogger(SleepingTest.class.getName()).log(Level.SEVERE, "client interrupted", ex);
-//					Thread.currentThread().interrupt();
-					return "what a night 0_o";
+					return "What a night 0_o";
+				} catch (RSBException ex) {
+					Logger.getLogger(SleepingTest.class.getName()).log(Level.SEVERE, "rsb communication failed", ex);
+					return "Could not refresh allocation";
 				}
 			}
+
+			@Override
+			public boolean updated(ResourceAllocation allocation) {
+				return true;
+			}
 		};
-		sl.schedule(0, 4000);
-		System.out.println(sl.getFuture().get());
-		sl.schedule(1000, 5000);
+		sl.startup();
 		System.out.println(sl.getFuture().get());
 		sl.shutdown();
 		RemoteAllocationService.getInstance().shutdown();
