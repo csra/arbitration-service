@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2016 Bielefeld University, Patrick Holthaus
  *
  * This program is free software: you can redistribute it and/or modify
@@ -21,15 +21,13 @@ import rsb.RSBException;
 /**
  *
  * @author Patrick Holthaus
- * (<a href=mailto:patrick.holthaus@uni-bielefeld.de>patrick.holthaus@uni-bielefeld.de</a>)
  */
-public interface Schedulable {
+public interface Adjustable {
 	
-	public void schedule() throws RSBException;
-
-	public void abort() throws RSBException;
+	public void shift(long amount) throws RSBException;
 	
-	public void cancel() throws RSBException;
-
-	public void release() throws RSBException;
+	public void shiftTo(long timestamp) throws RSBException;
+	
+	public void extend(long amount) throws RSBException;
+	
 }

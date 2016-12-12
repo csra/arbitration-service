@@ -16,6 +16,7 @@
  */
 package de.citec.csra.allocation.cli;
 
+import de.citec.csra.allocation.IntervalUtils;
 import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -29,18 +30,16 @@ import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Polic
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.REQUESTED;
-import rst.timing.IntervalType.Interval;
-import rst.timing.TimestampType.Timestamp;
 
 /**
  *
  * @author Patrick Holthaus
  * (<a href=mailto:patrick.holthaus@uni-bielefeld.de>patrick.holthaus@uni-bielefeld.de</a>)
  */
-public class AllocatableResource implements SchedulerListener {
+public class AllocatableResource implements SchedulerListener, Executable {
 
 	private final static Logger LOG = Logger.getLogger(ExecutableResource.class.getName());
-	private AllocationClient client;
+	private RemoteAllocation remote;
 	private final ResourceAllocation.Builder builder;
 	private final LinkedBlockingDeque<State> queue = new LinkedBlockingDeque<>();
 
@@ -49,101 +48,64 @@ public class AllocatableResource implements SchedulerListener {
 	}
 
 	public AllocatableResource(String description, Policy policy, Priority priority, Initiator initiator, long delay, long duration, String... resources) {
-		this(description, policy, priority, initiator, resources);
-		this.builder.setSlot(buildRelative(delay, duration));
-	}
-
-	public AllocatableResource(String description, Policy policy, Priority priority, Initiator initiator, String... resources) {
 		this.builder = ResourceAllocation.newBuilder().
-				setId(UUID.randomUUID().toString().substring(0, 12)).
 				setInitiator(initiator).
-				setState(REQUESTED).
 				setPolicy(policy).
 				setPriority(priority).
 				setDescription(description).
+				setSlot(IntervalUtils.buildRelativeRst(delay, duration)).
 				addAllResourceIds(Arrays.asList(resources));
 	}
 
-	private Interval buildRelative(long delay, long duration) {
-		long now = System.currentTimeMillis();
-		long start = now + delay;
-		long end = start + duration;
-		return build(start, end);
-	}
-
-	private Interval build(long begin, long end) {
-		return Interval.newBuilder().
-				setBegin(Timestamp.newBuilder().setTime(begin)).
-				setEnd(Timestamp.newBuilder().setTime(end)).build();
-	}
-
-	private void updateSlot(Interval interval) throws RSBException {
-		this.builder.setSlot(interval);
-		if (!this.queue.isEmpty()) {
-			this.client.updateSlot(interval);
+	@Override
+	public void startup() throws RSBException {
+		if (this.queue.isEmpty()) {
+			this.queue.add(REQUESTED);
+			if (!this.builder.hasId()) {
+				this.builder.setId(UUID.randomUUID().toString().substring(0, 12));
+			}
+			if (this.builder.hasState()) {
+				LOG.log(Level.WARNING, "Invalid initial state ''{0}'', altering to ''{1}''.", new Object[]{this.builder.getState(), getState()});
+			}
+			this.builder.setState(REQUESTED);
+			this.remote = new RemoteAllocation(this.builder.build());
+			this.remote.addSchedulerListener(this);
+			this.remote.schedule();
+		} else {
+			LOG.log(Level.WARNING, "Startup called while already active ({0}), ignoring.", getState());
 		}
 	}
 
-	public void shiftTo(long timestamp) throws RSBException {
-		long newBegin = timestamp;
-		long newEnd = newBegin + this.builder.getSlot().getEnd().getTime() - this.builder.getSlot().getBegin().getTime();
-		updateSlot(build(newBegin, newEnd));
+	@Override
+	public void shutdown() throws RSBException {
+		switch (getState()) {
+			case REQUESTED:
+			case SCHEDULED:
+				remote.cancel();
+				this.remote.removeSchedulerListener(this);
+				break;
+			case ALLOCATED:
+				remote.abort();
+				this.remote.removeSchedulerListener(this);
+				break;
+			default:
+				LOG.log(Level.WARNING, "Shutdown called in inactive state ({0}), ignoring.", getState());
+				break;
+		}
 	}
 
-	public void shift(long amount) throws RSBException {
-		long newEnd = this.builder.getSlot().getEnd().getTime() + amount;
-		long newBegin = this.builder.getSlot().getBegin().getTime() + amount;
-		updateSlot(build(newBegin, newEnd));
+	@Override
+	public void allocationUpdated(ResourceAllocation allocation) {
+		this.queue.add(allocation.getState());
 	}
-
-	public void extend(long duration) throws RSBException {
-		long newEnd = this.builder.getSlot().getEnd().getTime() + duration;
-		Interval newInterval = Interval.newBuilder(this.builder.getSlot()).setEnd(Timestamp.newBuilder().setTime(newEnd)).build();
-		updateSlot(newInterval);
-	}
-
-//	private void reschedule() throws RSBException {
-//		long now = System.currentTimeMillis();
-//		Interval.Builder interval = Interval.newBuilder(this.allocation.getSlot()).
-//				setBegin(Timestamp.newBuilder().setTime(now));
-//		this.allocation = ResourceAllocation.newBuilder(this.allocation).
-//				setId(UUID.randomUUID().toString().substring(0, 12)).
-//				setState(REQUESTED).
-//				setSlot(interval).
-//				setPolicy(MAXIMUM).
-//				setInitiator(SYSTEM).
-//				build();
-//
-//		this.queue.add(this.allocation.getState());
-//		this.client = new AllocationClient(this.allocation);
-//		this.client.addSchedulerListener(this);
-//		this.client.schedule();
-//	}
 
 	@Override
 	public String toString() {
 		return getClass().getSimpleName() + ((this.builder.getDescription() == null) ? "" : "[" + this.builder.getDescription() + "]");
 	}
-	
-	public void addSchedulerListener(SchedulerListener l){
-		this.client.addSchedulerListener(l);
-	}
-	
-	public void removeSchedulerListener(SchedulerListener l){
-		this.client.removeSchedulerListener(l);
-	}
 
-	@Override
-	public void allocationUpdated(ResourceAllocation allocation, String cause) {
-		this.queue.add(allocation.getState());
-		this.builder.mergeFrom(allocation);
-//		if (this.reschedule && allocation.getState().equals(ABORTED)) {
-//			try {
-//				reschedule();
-//			} catch (RSBException e) {
-//				LOG.log(Level.WARNING, "Rescheduling failed", e);
-//			}
-//		}
+	public RemoteAllocation getRemote() {
+		return this.remote;
 	}
 
 	public State getState() {
@@ -163,34 +125,6 @@ public class AllocatableResource implements SchedulerListener {
 				throw new TimeoutException();
 			}
 			Thread.sleep(50);
-		}
-	}
-
-	public void startup() throws RSBException {
-		if (this.queue.isEmpty()) {
-			this.queue.add(this.builder.getState());
-			this.client = new AllocationClient(this.builder.build());
-			this.client.addSchedulerListener(this);
-			this.client.schedule();
-		} else {
-			LOG.log(Level.WARNING, "Startup called while already active ({0}), ignoring.", getState());
-		}
-	}
-
-	public void shutdown() throws RSBException {
-		switch (getState()) {
-			case REQUESTED:
-			case SCHEDULED:
-				client.cancel();
-				this.client.removeSchedulerListener(this);
-				break;
-			case ALLOCATED:
-				client.abort();
-				this.client.removeSchedulerListener(this);
-				break;
-			default:
-				LOG.log(Level.WARNING, "Shutdown called in inactive state ({0}), ignoring.", getState());
-				break;
 		}
 	}
 }

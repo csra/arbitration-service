@@ -21,7 +21,6 @@ import java.util.logging.Logger;
 import rsb.Factory;
 import rsb.Handler;
 import rsb.Informer;
-import rsb.InitializeException;
 import rsb.Listener;
 import rsb.RSBException;
 import rsb.converter.DefaultConverterRepository;
@@ -48,14 +47,14 @@ public class RemoteAllocationService {
 	private final Informer informer;
 	private final Listener listener;
 
-	public static RemoteAllocationService getInstance() throws InitializeException, RSBException {
+	public static RemoteAllocationService getInstance() throws RSBException {
 		if (instance == null) {
 			instance = new RemoteAllocationService();
 		}
 		return instance;
 	}
 
-	private RemoteAllocationService() throws InitializeException, RSBException {
+	private RemoteAllocationService() throws RSBException {
 		this.informer = Factory.getInstance().createInformer(AllocationServer.getScope());
 		this.listener = Factory.getInstance().createListener(AllocationServer.getScope());
 		this.listener.addFilter(new OriginFilter(this.informer.getId(), true));

@@ -17,7 +17,7 @@
 package de.citec.csra.arbitration.srv;
 
 import com.google.protobuf.ByteString;
-import de.citec.csra.allocation.cli.AllocationClient;
+import de.citec.csra.allocation.cli.RemoteAllocation;
 import de.citec.csra.allocation.cli.SchedulerListener;
 import de.citec.csra.arbitration.task.cli.TaskReceiver;
 import java.util.logging.Level;
@@ -55,7 +55,7 @@ public class TaskMonitor implements SchedulerListener {
 	private final TaskReceiver handlerReceiver;
 	private final TaskReceiver submitterReceiver;
 
-	private final AllocationClient allocation;
+	private final RemoteAllocation allocation;
 	private final static ProtocolBufferConverter<ResourceAllocation> CONV = new ProtocolBufferConverter<>(ResourceAllocation.getDefaultInstance());
 
 	private TaskState task;
@@ -96,7 +96,7 @@ public class TaskMonitor implements SchedulerListener {
 		this.submitterReceiver.ignore(this.submitter.getId());
 		this.handlerReceiver.ignore(this.handler.getId());
 
-		this.allocation = new AllocationClient(needed);
+		this.allocation = new RemoteAllocation(needed);
 	}
 
 	public void activate() {
@@ -157,7 +157,7 @@ public class TaskMonitor implements SchedulerListener {
 	}
 	
 	@Override
-	public void allocationUpdated(ResourceAllocation allocation, String cause) {
+	public void allocationUpdated(ResourceAllocation allocation) {
 		switch(allocation.getState()){
 			case SCHEDULED:
 				LOG.log(Level.FINE, "Ignoring resource scheduling ''{0}''", allocation.toString().replaceAll("\n", " "));

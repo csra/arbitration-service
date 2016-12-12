@@ -16,6 +16,7 @@
  */
 package de.citec.csra.allocation.cli;
 
+import de.citec.csra.allocation.IntervalUtils;
 import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -34,64 +35,41 @@ import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Prior
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.ABORTED;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.CANCELLED;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.REQUESTED;
-import rst.timing.IntervalType;
-import rst.timing.TimestampType;
 
 /**
  *
  * @author Patrick Holthaus
  * (<a href=mailto:patrick.holthaus@uni-bielefeld.de>patrick.holthaus@uni-bielefeld.de</a>)
  */
-public abstract class ExecutableResource<T> implements SchedulerListener, Callable<T> {
+public abstract class ExecutableResource<T> implements SchedulerListener, Adjustable, Executable, Callable<T> {
 
 	private final static Logger LOG = Logger.getLogger(ExecutableResource.class.getName());
 	private final ExecutorService executor = Executors.newSingleThreadExecutor();
 	private Future<T> result;
-	private AllocationClient client;
+	private RemoteAllocation remote;
+	private final ResourceAllocation.Builder builder;
 	private ResourceAllocation allocation;
 
-	public ExecutableResource(String description, Policy policy, Priority priority, Initiator initiator, String... resources) {
-		this.allocation = ResourceAllocation.newBuilder().
-				setId(UUID.randomUUID().toString().substring(0, 12)).
+	public ExecutableResource(ResourceAllocation allocation) {
+		this.builder = ResourceAllocation.newBuilder(allocation);
+	}
+
+	public ExecutableResource(String description, Policy policy, Priority priority, Initiator initiator, long delay, long duration, String... resources) {
+		this.builder = ResourceAllocation.newBuilder().
 				setInitiator(initiator).
-				setState(REQUESTED).
 				setPolicy(policy).
 				setPriority(priority).
 				setDescription(description).
-				addAllResourceIds(Arrays.asList(resources)).
-				buildPartial();
+				setSlot(IntervalUtils.buildRelativeRst(delay, duration)).
+				addAllResourceIds(Arrays.asList(resources));
 	}
-
-	public void schedule(long delay, long duration) throws RSBException {
-
-		long now = System.currentTimeMillis();
-		long start = now + delay;
-		long end = start + duration;
-
-		IntervalType.Interval.Builder interval = IntervalType.Interval.newBuilder().
-				setBegin(TimestampType.Timestamp.newBuilder().setTime(start)).
-				setEnd(TimestampType.Timestamp.newBuilder().setTime(end));
-		
-		this.allocation = ResourceAllocation.newBuilder(this.allocation).
-				setSlot(interval).
-				build();
-
-		this.result = executor.submit(this);
-		this.client = new AllocationClient(this.allocation);
-		this.client.addSchedulerListener(this);
-		this.client.schedule();
-	}
-
-	public Future<T> getFuture() {
-		return this.result;
-	}
-
+	
 	private void terminateExecution(boolean interrupt) {
 		if (result != null && !result.isDone()) {
 			result.cancel(interrupt);
 		}
 		try {
-			client.removeSchedulerListener(this);
+			remote.removeSchedulerListener(this);
 			executor.shutdown();
 			executor.awaitTermination(5000, TimeUnit.MILLISECONDS);
 		} catch (InterruptedException x) {
@@ -100,16 +78,33 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 		}
 	}
 
+	@Override
+	public void startup() throws RSBException {
+		if (!this.builder.hasId()) {
+			this.builder.setId(UUID.randomUUID().toString().substring(0, 12));
+		}
+		if (this.builder.hasState()) {
+			LOG.log(Level.WARNING, "Invalid initial state ''{0}'', altering to ''{1}''.", new Object[]{this.builder.getState(), REQUESTED});
+		}
+		this.builder.setState(REQUESTED);
+		this.result = executor.submit(this);
+		this.allocation = this.builder.build();
+		this.remote = new RemoteAllocation(this.allocation);
+		this.remote.addSchedulerListener(this);
+		this.remote.schedule();
+	}
+	
+	@Override
 	public void shutdown() throws RSBException {
 		switch (allocation.getState()) {
 			case REQUESTED:
 			case SCHEDULED:
-				client.cancel();
+				remote.cancel();
 				allocation = ResourceAllocation.newBuilder(allocation).setState(CANCELLED).build();
 				terminateExecution(false);
 				break;
 			case ALLOCATED:
-				client.abort();
+				remote.abort();
 				allocation = ResourceAllocation.newBuilder(allocation).setState(ABORTED).build();
 				terminateExecution(true);
 				break;
@@ -119,8 +114,6 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 				break;
 		}
 	}
-
-	public abstract T execute(long slice) throws ExecutionException, InterruptedException;
 
 	@Override
 	public T call() {
@@ -148,35 +141,33 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 		}
 
 		long start = this.allocation.getSlot().getBegin().getTime();
-		long end = this.allocation.getSlot().getEnd().getTime();
 		long now = System.currentTimeMillis();
-		long slice = Math.max(100, end - now);
-		
+
 		if (start > now) {
 			LOG.log(Level.WARNING, "permission to run in the future, starting anyways.");
 		}
 
 		T res = null;
 		try {
-			LOG.log(Level.FINE, "Starting user code execution for {0}ms.", slice);
-			res = execute(slice);
+			LOG.log(Level.FINE, "Starting user code execution for {0}ms.", remaining());
+			res = execute();
 			LOG.log(Level.FINE, "User code execution returned with ''{0}''", res);
 			try {
-				this.client.release();
+				this.remote.release();
 			} catch (RSBException ex) {
 				LOG.log(Level.WARNING, "Could not release resources", ex);
 			}
 		} catch (ExecutionException ex) {
 			LOG.log(Level.WARNING, "User code execution failed", ex);
 			try {
-				this.client.abort();
+				this.remote.abort();
 			} catch (RSBException ex1) {
 				LOG.log(Level.WARNING, "Could not abort resources", ex1);
 			}
 		} catch (InterruptedException ex) {
 			LOG.log(Level.FINER, "User code interrupted", ex);
 			try {
-				this.client.abort();
+				this.remote.abort();
 			} catch (RSBException ex1) {
 				LOG.log(Level.WARNING, "Could not abort resources", ex1);
 			}
@@ -184,18 +175,38 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 		return res;
 
 	}
+		
+	public Future<T> getFuture() {
+		return this.result;
+	}
 
+	public long remaining() {
+		return Math.max(0, allocation.getSlot().getEnd().getTime() - System.currentTimeMillis() - 100);
+	}
+		
 	@Override
-	public String toString() {
-		return getClass().getSimpleName() + ((this.allocation.getDescription() == null) ? "" : "[" + this.allocation.getDescription() + "]");
+	public void shift(long amount) throws RSBException {
+		this.remote.shift(amount);
+	}
+	
+	@Override
+	public void shiftTo(long timestamp) throws RSBException {
+		this.remote.shiftTo(timestamp);
+	}
+	
+	@Override
+	public void extend(long amount) throws RSBException{
+		this.remote.extend(amount);
 	}
 
 	@Override
-	public void allocationUpdated(ResourceAllocation allocation, String cause) {
+	public void allocationUpdated(ResourceAllocation allocation) {
 		this.allocation = allocation;
 		switch (allocation.getState()) {
 			case SCHEDULED:
+				break;
 			case ALLOCATED:
+				updated(allocation);
 				break;
 			case REJECTED:
 			case CANCELLED:
@@ -207,4 +218,13 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Callab
 				break;
 		}
 	}
+	@Override
+	public String toString() {
+		return getClass().getSimpleName() + ((this.allocation.getDescription() == null) ? "" : "[" + this.allocation.getDescription() + "]");
+	}
+
+	public abstract T execute() throws ExecutionException, InterruptedException;
+
+	public abstract boolean updated(ResourceAllocation allocation);
+
 }

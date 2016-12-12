@@ -25,6 +25,6 @@ import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
  */
 public interface SchedulerListener {
     
-	public void allocationUpdated(ResourceAllocation allocation, String cause);
+	public void allocationUpdated(ResourceAllocation allocation);
     
 }

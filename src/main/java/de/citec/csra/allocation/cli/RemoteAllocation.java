@@ -16,13 +16,13 @@
  */
 package de.citec.csra.allocation.cli;
 
+import de.citec.csra.allocation.IntervalUtils;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import rsb.InitializeException;
 import rsb.RSBException;
 import rsb.util.QueueAdapter;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
@@ -35,22 +35,21 @@ import rst.timing.IntervalType.Interval;
  * @author Patrick Holthaus
  * (<a href=mailto:patrick.holthaus@uni-bielefeld.de>patrick.holthaus@uni-bielefeld.de</a>)
  */
-public class AllocationClient implements SchedulerController {
+public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListener {
 
-	private final static Logger LOG = Logger.getLogger(AllocationClient.class.getName());
+	private final static Logger LOG = Logger.getLogger(RemoteAllocation.class.getName());
 
 	private ResourceAllocation allocation;
 	private final QueueAdapter qa;
 	private final BlockingQueue<ResourceAllocation> queue;
 	private final Set<SchedulerListener> listeners;
-	private final RemoteAllocationService remoteService;
+	private RemoteAllocationService remoteService;
 
-	public AllocationClient(ResourceAllocation allocation) throws InitializeException, RSBException {
+	public RemoteAllocation(ResourceAllocation allocation) {
 		this.qa = new QueueAdapter();
 		this.queue = qa.getQueue();
 		this.allocation = allocation;
 		this.listeners = new HashSet<>();
-		this.remoteService = RemoteAllocationService.getInstance();
 	}
 
 	public void addSchedulerListener(SchedulerListener l) {
@@ -59,6 +58,10 @@ public class AllocationClient implements SchedulerController {
 
 	public void removeSchedulerListener(SchedulerListener l) {
 		this.listeners.remove(l);
+	}
+	
+	public void removeAllSchedulerListeners() {
+		this.listeners.clear();
 	}
 
 	private synchronized boolean isAlive() {
@@ -86,7 +89,7 @@ public class AllocationClient implements SchedulerController {
 				try {
 					ResourceAllocation update = queue.poll(2000, TimeUnit.MILLISECONDS);
 					if (update != null && update.getId().equals(allocation.getId())) {
-						remoteUpdated(update);
+						allocationUpdated(update);
 					}
 				} catch (InterruptedException ex) {
 					LOG.log(Level.SEVERE, "Event dispatching interrupted", ex);
@@ -96,6 +99,7 @@ public class AllocationClient implements SchedulerController {
 			}
 		}).start();
 		try {
+			this.remoteService = RemoteAllocationService.getInstance();
 			this.remoteService.addHandler(this.qa, true);
 			this.remoteService.update(this.allocation);
 		} catch (InterruptedException ex) {
@@ -118,7 +122,7 @@ public class AllocationClient implements SchedulerController {
 		updateState(CANCELLED);
 	}
 
-	public void updateSlot(Interval interval) throws RSBException {
+	private void updateSlot(Interval interval) throws RSBException {
 		if (isAlive()) {
 			ResourceAllocation update = ResourceAllocation.newBuilder(this.allocation).setSlot(interval).build();
 			this.allocation = update;
@@ -178,7 +182,8 @@ public class AllocationClient implements SchedulerController {
 		}
 	}
 
-	private void remoteUpdated(ResourceAllocation update) {
+	@Override
+	public final void allocationUpdated(ResourceAllocation update) {
 		if (isAlive()) {
 			LOG.log(Level.FINE,
 					"resource allocation updated by server ''{0}'' -> ''{1}'' ({2})",
@@ -188,7 +193,7 @@ public class AllocationClient implements SchedulerController {
 						update.toString().replaceAll("\n", " ")});
 			this.allocation = update;
 			for (SchedulerListener l : this.listeners) {
-				l.allocationUpdated(allocation, allocation.getDescription());
+				l.allocationUpdated(allocation);
 			}
 
 			if (!isAlive()) {
@@ -211,5 +216,26 @@ public class AllocationClient implements SchedulerController {
 				+ ((this.allocation == null)
 						? ""
 						: "[" + this.allocation.toString().replaceAll("\n", " ") + "]");
+	}
+
+	@Override
+	public void shift(long amount) throws RSBException {
+		long newBegin = this.allocation.getSlot().getBegin().getTime() + amount;
+		long newEnd = this.allocation.getSlot().getEnd().getTime() + amount;
+		updateSlot(IntervalUtils.buildRst(newBegin, newEnd));
+	}
+
+	@Override
+	public void shiftTo(long timestamp) throws RSBException {
+		long newBegin = timestamp;
+		long newEnd = newBegin + this.allocation.getSlot().getEnd().getTime() - this.allocation.getSlot().getBegin().getTime();
+		updateSlot(IntervalUtils.buildRst(newBegin, newEnd));
+	}
+
+	@Override
+	public void extend(long amount) throws RSBException {
+		long newBegin = this.allocation.getSlot().getBegin().getTime();
+		long newEnd = this.allocation.getSlot().getEnd().getTime() + amount;
+		updateSlot(IntervalUtils.buildRst(newBegin, newEnd));
 	}
 }
