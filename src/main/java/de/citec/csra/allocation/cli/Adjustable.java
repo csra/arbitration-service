@@ -30,4 +30,6 @@ public interface Adjustable {
 	
 	public void extend(long amount) throws RSBException;
 	
+	public void extendTo(long timestamp) throws RSBException;
+	
 }

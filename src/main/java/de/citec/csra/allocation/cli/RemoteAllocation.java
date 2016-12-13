@@ -238,4 +238,11 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 		long newEnd = this.allocation.getSlot().getEnd().getTime() + amount;
 		updateSlot(IntervalUtils.buildRst(newBegin, newEnd));
 	}
+	
+	@Override
+	public void extendTo(long timestamp) throws RSBException {
+		long newBegin = this.allocation.getSlot().getBegin().getTime();
+		long newEnd = timestamp;
+		updateSlot(IntervalUtils.buildRst(newBegin, newEnd));
+	}
 }

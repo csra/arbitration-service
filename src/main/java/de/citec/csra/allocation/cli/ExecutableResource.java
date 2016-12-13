@@ -63,7 +63,7 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Adjust
 				setSlot(IntervalUtils.buildRelativeRst(delay, duration)).
 				addAllResourceIds(Arrays.asList(resources));
 	}
-	
+
 	private void terminateExecution(boolean interrupt) {
 		if (result != null && !result.isDone()) {
 			result.cancel(interrupt);
@@ -93,7 +93,7 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Adjust
 		this.remote.addSchedulerListener(this);
 		this.remote.schedule();
 	}
-	
+
 	@Override
 	public void shutdown() throws RSBException {
 		switch (allocation.getState()) {
@@ -175,30 +175,46 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Adjust
 		return res;
 
 	}
-		
+
 	public Future<T> getFuture() {
 		return this.result;
 	}
 
 	public long remaining() {
-		return Math.max(0, allocation.getSlot().getEnd().getTime() - System.currentTimeMillis() - 100);
+		switch (this.allocation.getState()) {
+			case REQUESTED:
+			case SCHEDULED:
+			case ALLOCATED:
+				return Math.max(0, allocation.getSlot().getEnd().getTime() - System.currentTimeMillis() - 100);
+			case ABORTED:
+			case CANCELLED:
+			case REJECTED:
+			case RELEASED:
+			default:
+				return -1;
+		}
 	}
-		
+
 	@Override
 	public void shift(long amount) throws RSBException {
 		this.remote.shift(amount);
 	}
-	
+
 	@Override
 	public void shiftTo(long timestamp) throws RSBException {
 		this.remote.shiftTo(timestamp);
 	}
-	
+
 	@Override
-	public void extend(long amount) throws RSBException{
+	public void extend(long amount) throws RSBException {
 		this.remote.extend(amount);
 	}
-
+	
+	@Override
+	public void extendTo(long timestamp) throws RSBException {
+		this.remote.extendTo(timestamp);
+	}
+	
 	@Override
 	public void allocationUpdated(ResourceAllocation allocation) {
 		this.allocation = allocation;
@@ -218,6 +234,7 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Adjust
 				break;
 		}
 	}
+
 	@Override
 	public String toString() {
 		return getClass().getSimpleName() + ((this.allocation.getDescription() == null) ? "" : "[" + this.allocation.getDescription() + "]");
