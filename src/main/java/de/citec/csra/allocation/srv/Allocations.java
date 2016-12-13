@@ -24,6 +24,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State;
@@ -115,10 +117,27 @@ public class Allocations {
 	ResourceAllocation setReason(String id, String reason) {
 		synchronized (this.allocations) {
 			if (this.allocations.containsKey(id)) {
+				ResourceAllocation current = this.allocations.get(id);
+
+				String newDescription;
+				if (current.hasDescription()) {
+					String desc = current.getDescription();
+					Pattern p = Pattern.compile(reason + "\\[([0-9]+)\\]");
+					Matcher m = p.matcher(desc);
+					if (m.find()) {
+						long n = Long.valueOf(m.group(1));
+						newDescription = m.replaceFirst(reason + "[" + String.valueOf(n + 1) + "]");
+					} else {
+						newDescription = current.getDescription() + " " + reason + "[1]";
+					}
+				} else {
+					newDescription = reason + "[1]";
+				}
+
 				return this.allocations.put(id,
 						ResourceAllocation.
-								newBuilder(this.allocations.get(id)).
-								setDescription(this.allocations.get(id).getDescription() + ": " + reason).
+								newBuilder(current).
+								setDescription(newDescription).
 								build());
 			} else {
 				LOG.log(Level.WARNING, "attempt to modify allocation ''{0}'' ignored, no such allocation available", id);
@@ -250,6 +269,7 @@ public class Allocations {
 
 	void update(ResourceAllocation allocation, String reason) {
 		LOG.log(Level.FINE, "Updating: {0}", allocation.toString().replaceAll("\n", " "));
+		updateAffected(allocation, "slot superseded");
 		synchronized (this.allocations) {
 			if (isAlive(allocation.getId())) {
 				this.allocations.put(allocation.getId(), allocation);
@@ -271,7 +291,7 @@ public class Allocations {
 				if (reason != null) {
 					setReason(allocation.getId(), reason);
 				}
-				this.notifications.update(allocation.getId(), false);
+				this.notifications.update(allocation.getId(), true);
 				this.allocations.remove(allocation.getId());
 				return true;
 			} else {
