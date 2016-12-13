@@ -88,7 +88,7 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 	private final Timer timer = new Timer(250, this);
 	private final TimeSeriesCollection dataset = new TimeSeriesCollection();
 //	TaskSeriesCollection categories = new TaskSeriesCollection();
-	
+
 	private final ValueMarker marker;
 	private int events = 1;
 
@@ -105,10 +105,10 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 	public MovingChart(final String title) {
 
 		super(title);
-		
-		this.marker = new ValueMarker(System.currentTimeMillis()); 
+
+		this.marker = new ValueMarker(System.currentTimeMillis());
 		marker.setPaint(Color.black);
-		
+
 		this.plustime = new TimeSeries("+" + FUTURE / 1000 + "s");
 		this.dataset.addSeries(this.plustime);
 		this.chart = createChart(this.dataset);
@@ -159,7 +159,7 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 		);
 
 		final XYPlot plot = result.getXYPlot();
-		
+
 		plot.addDomainMarker(this.marker);
 		plot.setBackgroundPaint(new Color(0xf8f8ed));
 		plot.setDomainGridlinesVisible(true);
@@ -202,6 +202,12 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 							break;
 						}
 					}
+				}
+				id = id.replaceFirst("^/home/", "").replaceFirst("/$", "");
+				int first = id.indexOf("/");
+				int last = id.lastIndexOf("/");
+				if (first > 0 && first < last && last < id.length()) {
+					id = id.replace(id.substring(first, last + 1), "...");
 				}
 				ap.append(id);
 				return ap;
