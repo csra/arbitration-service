@@ -38,6 +38,7 @@ import org.jfree.chart.JFreeChart;
 import org.jfree.chart.axis.NumberAxis;
 import org.jfree.chart.axis.NumberTickUnit;
 import org.jfree.chart.axis.ValueAxis;
+import org.jfree.chart.plot.ValueMarker;
 import org.jfree.chart.plot.XYPlot;
 import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer;
 import org.jfree.data.gantt.TaskSeries;
@@ -77,8 +78,7 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 	 * The time series data.
 	 */
 	private final TimeSeries plustime;
-	private final TimeSeries currenttime;
-	private final int PAST = 10000;
+	private final int PAST = 60000;
 	private final int FUTURE = 1800000;
 	/**
 	 * Timer to refresh graph after every 1/4th of a second
@@ -87,6 +87,7 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 	private final TimeSeriesCollection dataset = new TimeSeriesCollection();
 //	TaskSeriesCollection categories = new TaskSeriesCollection();
 
+	private final ValueMarker marker;
 	private int events = 1;
 
 	Map<String, TimeSeries> sers = new HashMap<>();
@@ -102,16 +103,15 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 	public MovingChart(final String title) {
 
 		super(title);
+
+		this.marker = new ValueMarker(System.currentTimeMillis());
+		marker.setPaint(Color.black);
+
 		this.plustime = new TimeSeries("+" + FUTURE / 1000 + "s");
-		this.currenttime = new TimeSeries("Current");
-
 		this.dataset.addSeries(this.plustime);
-		this.dataset.addSeries(this.currenttime);
-
 		this.chart = createChart(this.dataset);
 //		this.timer.setInitialDelay(1000);
 		this.plustime.addOrUpdate(new Millisecond(new Date(System.currentTimeMillis() - PAST)), 0);
-		this.currenttime.addOrUpdate(new Millisecond(new Date(System.currentTimeMillis() - PAST)), 0.01);
 
 		//Sets background color of chart
 		chart.setBackgroundPaint(Color.LIGHT_GRAY);
@@ -126,14 +126,13 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 		content.add(chartPanel);
 
 		//Sets the size of whole window (JPanel)
-		chartPanel.setPreferredSize(new java.awt.Dimension(1000, 600));
+		chartPanel.setPreferredSize(new java.awt.Dimension(1500, 600));
 
 		//Puts the whole content on a Frame
 		setContentPane(content);
 
 		XYLineAndShapeRenderer r = (XYLineAndShapeRenderer) this.chart.getXYPlot().getRendererForDataset(dataset);
 		r.setSeriesPaint(0, Color.BLACK);
-		r.setSeriesPaint(1, Color.BLUE);
 
 		this.timer.start();
 
@@ -159,6 +158,7 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 
 		final XYPlot plot = result.getXYPlot();
 
+		plot.addDomainMarker(this.marker);
 		plot.setBackgroundPaint(new Color(0xf8f8ed));
 		plot.setDomainGridlinesVisible(true);
 		plot.setDomainGridlinePaint(Color.lightGray);
@@ -225,30 +225,30 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 	@Override
 	public void actionPerformed(final ActionEvent e) {
 
-			this.plustime.addOrUpdate(new Millisecond(new Date(System.currentTimeMillis() + FUTURE)), 0);
-			this.currenttime.addOrUpdate(new Millisecond(new Date(System.currentTimeMillis())), 0.01);
-			List<TimeSeries> ts = this.dataset.getSeries();
-			List<TimeSeries> del = new LinkedList<>();
-			long now = System.currentTimeMillis();
-			int active = 0;
-			for (TimeSeries t : ts) {
-				if (!t.equals(this.plustime) && !t.equals(this.currenttime)) {
-					List<TimeSeriesDataItem> its = t.getItems();
-					long last = 0;
-					for (TimeSeriesDataItem it : its) {
-						long end = it.getPeriod().getLastMillisecond();
-						if (end > last) {
-							last = end;
-						}
-					}
-					if (now - last > PAST) {
-						del.add(t);
-					} else {
-						active++;
+		this.plustime.addOrUpdate(new Millisecond(new Date(System.currentTimeMillis() + FUTURE)), 0);
+		List<TimeSeries> ts = this.dataset.getSeries();
+		List<TimeSeries> del = new LinkedList<>();
+		long now = System.currentTimeMillis();
+		marker.setValue(now);
+		int active = 0;
+		for (TimeSeries t : ts) {
+			if (!t.equals(this.plustime)) {
+				List<TimeSeriesDataItem> its = t.getItems();
+				long last = 0;
+				for (TimeSeriesDataItem it : its) {
+					long end = it.getPeriod().getLastMillisecond();
+					if (end > last) {
+						last = end;
 					}
 				}
+				if (now - last > PAST) {
+					del.add(t);
+				} else {
+					active++;
+				}
 			}
-			
+		}
+
 		synchronized (this.dataset) {
 			if (active == 0) {
 				for (TimeSeries d : del) {
@@ -258,7 +258,6 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 					this.chart.getXYPlot().setRenderer(new XYLineAndShapeRenderer(true, false));
 					XYLineAndShapeRenderer r = (XYLineAndShapeRenderer) this.chart.getXYPlot().getRendererForDataset(dataset);
 					r.setSeriesPaint(0, Color.BLACK);
-					r.setSeriesPaint(1, Color.BLUE);
 				}
 			}
 		}
