@@ -21,8 +21,11 @@ import java.util.concurrent.TimeoutException;
 import static org.junit.Assert.fail;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import rsb.Factory;
 import rsb.InitializeException;
 import rsb.RSBException;
+import rsb.config.ParticipantConfig;
+import rsb.config.TransportConfig;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initiator.SYSTEM;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy.MAXIMUM;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority.*;
@@ -40,6 +43,11 @@ public class SupersedingTest {
 
 	@BeforeClass
 	public static void initServer() throws InterruptedException {
+		ParticipantConfig cfg = Factory.getInstance().getDefaultParticipantConfig();
+		for (TransportConfig t : cfg.getTransports().values()) {
+			t.setEnabled(t.getName().equalsIgnoreCase("INPROCESS"));
+		}
+		Factory.getInstance().setDefaultParticipantConfig(cfg);
 		new Thread(() -> {
 			try {
 				AllocationServer a = AllocationServer.getInstance();
@@ -66,19 +74,19 @@ public class SupersedingTest {
 	public void testNonConflict() throws InitializeException, RSBException, InterruptedException, TimeoutException {
 		AllocatableResource some = new AllocatableResource("Some", MAXIMUM, NORMAL, SYSTEM, 0, 5000, "some-resource");
 		AllocatableResource other = new AllocatableResource("Other", MAXIMUM, NORMAL, SYSTEM, 0, 5000, "other-resource");
-		
+
 		some.startup();
 		other.startup();
-		
+
 		some.await(REQUESTED, 1000);
 		other.await(REQUESTED, 1000);
-		
+
 		some.await(SCHEDULED, 1000);
 		other.await(SCHEDULED, 1000);
-		
+
 		some.await(ALLOCATED, 3000);
 		other.await(ALLOCATED, 3000);
-		
+
 		some.await(RELEASED, 5000);
 		other.await(RELEASED, 5000);
 	}
@@ -125,7 +133,6 @@ public class SupersedingTest {
 //		assertTrue("not aborted", normal.getAborted() == 0);
 //
 //	}
-
 //	@Test
 //	public void testCancelling() throws InitializeException, RSBException, InterruptedException {
 //		SleepingSkill normal = new SleepingSkill("Normal", "some-resource", MAXIMUM, NORMAL);
