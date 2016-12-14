@@ -289,7 +289,7 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 
 	}
 
-	public void updateDataPoints(String id, String resource, long start, long end, State state) {
+	public void updateDataPoints(String id, String label, String resource, long start, long end, State state) {
 		synchronized (this.dataset) {
 			TimeSeries series = this.dataset.getSeries(id);
 			if (series == null) {
@@ -297,6 +297,7 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 				this.dataset.addSeries(series);
 			}
 
+			series.setDomainDescription(label);
 			int stroke = -1;
 			Color c = null;
 			switch (state) {
@@ -376,7 +377,7 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 			long end = update.getSlot().getEnd().getTime();
 			for (String resource : update.getResourceIdsList()) {
 				String label = update.getDescription().replaceAll(":.*", "") + " (" + update.getId().substring(0, 4) + ")";
-				updateDataPoints(label, resource, start, end, update.getState());
+				updateDataPoints(update.getId() + ":" + resource, label, resource, start, end, update.getState());
 			}
 		}
 	}
