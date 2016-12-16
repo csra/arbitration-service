@@ -155,21 +155,21 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Adjust
 			try {
 				this.remote.release();
 			} catch (RSBException ex) {
-				LOG.log(Level.WARNING, "Could not release resources", ex);
+				LOG.log(Level.WARNING, "Could not release resources at server", ex);
 			}
 		} catch (ExecutionException ex) {
-			LOG.log(Level.WARNING, "User code execution failed", ex);
+			LOG.log(Level.WARNING, "User code execution failed, aborting allocation at server", ex);
 			try {
 				this.remote.abort();
 			} catch (RSBException ex1) {
-				LOG.log(Level.WARNING, "Could not abort resources", ex1);
+				LOG.log(Level.WARNING, "Could not abort resource allocation at server", ex1);
 			}
 		} catch (InterruptedException ex) {
-			LOG.log(Level.FINER, "User code interrupted", ex);
+			LOG.log(Level.FINER, "User code interrupted, aborting allocation at server");
 			try {
 				this.remote.abort();
 			} catch (RSBException ex1) {
-				LOG.log(Level.WARNING, "Could not abort resources", ex1);
+				LOG.log(Level.WARNING, "Could not abort resource allocation at server", ex1);
 			}
 		}
 		return res;
@@ -237,7 +237,10 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Adjust
 
 	@Override
 	public String toString() {
-		return getClass().getSimpleName() + ((this.allocation.getDescription() == null) ? "" : "[" + this.allocation.getDescription() + "]");
+		return getClass().getSimpleName() + 
+				((this.allocation == null) ? 
+				"[" + this.builder.buildPartial().toString().replaceAll("\n", " ") + "]" : 
+				"[" + this.allocation.toString().replaceAll("\n", " ") + "]");
 	}
 
 	public abstract T execute() throws ExecutionException, InterruptedException;
