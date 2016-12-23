@@ -33,6 +33,7 @@ import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initi
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.ABORTED;
+import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.ALLOCATED;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.CANCELLED;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.REQUESTED;
 
@@ -128,22 +129,24 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Adjust
 
 	@Override
 	public T call() {
-		awaitStart:
-		while (!Thread.interrupted()) {
-			switch (this.allocation.getState()) {
-				case REQUESTED:
-				case SCHEDULED:
-					break;
-				case ALLOCATED:
-					break awaitStart;
-				case ABORTED:
-				case CANCELLED:
-				case REJECTED:
-				case RELEASED:
-					return null;
-			}
+		synchronized (this) {
 			try {
-				Thread.sleep(10);
+				awaitStart:
+				while (!Thread.interrupted()) {
+					this.wait();
+					switch (this.allocation.getState()) {
+						case REQUESTED:
+						case SCHEDULED:
+							break;
+						case ALLOCATED:
+							break awaitStart;
+						case ABORTED:
+						case CANCELLED:
+						case REJECTED:
+						case RELEASED:
+							return null;
+					}
+				}
 			} catch (InterruptedException ex) {
 				LOG.log(Level.SEVERE, "Startup interrupted in state " + this.allocation.getState(), ex);
 				Thread.interrupted();
@@ -238,13 +241,13 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Adjust
 	@Override
 	public void allocationUpdated(ResourceAllocation allocation) {
 		this.allocation = allocation;
+		synchronized (this) {
+			this.notifyAll();
+		}
 		switch (allocation.getState()) {
 			case SCHEDULED:
 				break;
 			case ALLOCATED:
-				synchronized (this) {
-					this.notifyAll();
-				}
 				timeChanged(remaining());
 				break;
 			case REJECTED:
