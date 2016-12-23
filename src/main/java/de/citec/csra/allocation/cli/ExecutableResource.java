@@ -132,7 +132,7 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Adjust
 					return null;
 			}
 			try {
-				Thread.sleep(50);
+				Thread.sleep(10);
 			} catch (InterruptedException ex) {
 				LOG.log(Level.SEVERE, "Startup interrupted in state " + this.allocation.getState(), ex);
 				Thread.interrupted();
