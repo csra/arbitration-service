@@ -191,7 +191,7 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Adjust
 			case REJECTED:
 			case RELEASED:
 			default:
-				return -1;
+				return 0;
 		}
 	}
 
