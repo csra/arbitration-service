@@ -45,16 +45,22 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Adjust
 
 	private final static Logger LOG = Logger.getLogger(ExecutableResource.class.getName());
 	private final ExecutorService executor = Executors.newSingleThreadExecutor();
+	private final ResourceAllocation.Builder builder;
+	private final boolean block;
 	private Future<T> result;
 	private RemoteAllocation remote;
-	private final ResourceAllocation.Builder builder;
 	private ResourceAllocation allocation;
 
 	public ExecutableResource(ResourceAllocation allocation) {
-		this.builder = ResourceAllocation.newBuilder(allocation);
+		this(allocation, false);
 	}
 
-	public ExecutableResource(String description, Policy policy, Priority priority, Initiator initiator, long delay, long duration, String... resources) {
+	public ExecutableResource(ResourceAllocation allocation, boolean block) {
+		this.builder = ResourceAllocation.newBuilder(allocation);
+		this.block = block;
+	}
+
+	public ExecutableResource(String description, Policy policy, Priority priority, Initiator initiator, long delay, long duration, boolean block, String... resources) {
 		this.builder = ResourceAllocation.newBuilder().
 				setInitiator(initiator).
 				setPolicy(policy).
@@ -62,6 +68,11 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Adjust
 				setDescription(description).
 				setSlot(IntervalUtils.buildRelativeRst(delay, duration)).
 				addAllResourceIds(Arrays.asList(resources));
+		this.block = block;
+	}
+
+	public ExecutableResource(String description, Policy policy, Priority priority, Initiator initiator, long delay, long duration, String... resources) {
+		this(description, policy, priority, initiator, delay, duration, false, resources);
 	}
 
 	private void terminateExecution(boolean interrupt) {
@@ -152,6 +163,15 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Adjust
 			LOG.log(Level.FINE, "Starting user code execution for {0}ms.", remaining());
 			res = execute();
 			LOG.log(Level.FINE, "User code execution returned with ''{0}''", res);
+			if (block) {
+				synchronized (this) {
+					long time;
+					while ((time = remaining()) > 0 && !Thread.interrupted()) {
+						LOG.log(Level.FINER, "blocking for {0}ms.", time);
+						this.wait(time);
+					}
+				}
+			}
 			try {
 				this.remote.release();
 			} catch (RSBException ex) {
@@ -209,12 +229,12 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Adjust
 	public void extend(long amount) throws RSBException {
 		this.remote.extend(amount);
 	}
-	
+
 	@Override
 	public void extendTo(long timestamp) throws RSBException {
 		this.remote.extendTo(timestamp);
 	}
-	
+
 	@Override
 	public void allocationUpdated(ResourceAllocation allocation) {
 		this.allocation = allocation;
@@ -222,7 +242,10 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Adjust
 			case SCHEDULED:
 				break;
 			case ALLOCATED:
-				updated(allocation);
+				synchronized (this) {
+					this.notifyAll();
+				}
+				timeChanged(remaining());
 				break;
 			case REJECTED:
 			case CANCELLED:
@@ -237,10 +260,10 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Adjust
 
 	@Override
 	public String toString() {
-		return getClass().getSimpleName() + 
-				((this.allocation == null) ? 
-				"[" + this.builder.buildPartial().toString().replaceAll("\n", " ") + "]" : 
-				"[" + this.allocation.toString().replaceAll("\n", " ") + "]");
+		return getClass().getSimpleName()
+				+ ((this.allocation == null)
+						? "[" + this.builder.buildPartial().toString().replaceAll("\n", " ") + "]"
+						: "[" + this.allocation.toString().replaceAll("\n", " ") + "]");
 	}
 
 	public abstract T execute() throws ExecutionException, InterruptedException;
