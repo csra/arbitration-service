@@ -245,6 +245,6 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Adjust
 
 	public abstract T execute() throws ExecutionException, InterruptedException;
 
-	public abstract boolean updated(ResourceAllocation allocation);
+	public abstract void timeChanged(long remaining);
 
 }
