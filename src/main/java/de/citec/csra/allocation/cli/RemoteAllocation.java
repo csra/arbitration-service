@@ -59,7 +59,7 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 	public void removeSchedulerListener(SchedulerListener l) {
 		this.listeners.remove(l);
 	}
-	
+
 	public void removeAllSchedulerListeners() {
 		this.listeners.clear();
 	}
@@ -109,31 +109,33 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 
 	@Override
 	public void abort() throws RSBException {
-		updateState(ABORTED);
+		requestState(ABORTED);
 	}
 
 	@Override
 	public void release() throws RSBException {
-		updateState(RELEASED);
+		requestState(RELEASED);
 	}
 
 	@Override
 	public void cancel() throws RSBException {
-		updateState(CANCELLED);
+		requestState(CANCELLED);
 	}
 
-	private void updateSlot(Interval interval) throws RSBException {
+	private void requestSlot(Interval interval) throws RSBException {
 		if (isAlive()) {
-			ResourceAllocation update = ResourceAllocation.newBuilder(this.allocation).setSlot(interval).build();
-			this.allocation = update;
-			if(!this.allocation.getState().equals(REQUESTED)){
+			ResourceAllocation request = ResourceAllocation.newBuilder(this.allocation).setSlot(interval).build();
+			if (this.remoteService == null) {
+				System.out.println("shift without comm");
+				this.allocation = request;
+			} else {
 				LOG.log(Level.FINE,
-					"attempting client allocation slot change ''{0}'' -> ''{1}'' ({2})",
-					new Object[]{
-						allocation.getSlot().toString().replaceAll("\n", " "),
-						interval.toString().replaceAll("\n", " "),
-						update.toString().replaceAll("\n", " ")});
-				this.remoteService.update(this.allocation);
+						"attempting client allocation slot change ''{0}'' -> ''{1}'' ({2})",
+						new Object[]{
+							allocation.getSlot().toString().replaceAll("\n", " "),
+							interval.toString().replaceAll("\n", " "),
+							request.toString().replaceAll("\n", " ")});
+				this.remoteService.update(request);
 			}
 		} else {
 			LOG.log(Level.FINE,
@@ -142,38 +144,29 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 		}
 	}
 
-	private void updateState(State newState) throws RSBException {
+	private void requestState(State newState) throws RSBException {
 		if (isAlive()) {
-			ResourceAllocation update = ResourceAllocation.newBuilder(this.allocation).setState(newState).build();
-			try {
-				switch (newState) {
-					case ABORTED:
-					case CANCELLED:
-					case RELEASED:
-						LOG.log(Level.FINE,
-								"attempting client allocation state change ''{0}'' -> ''{1}'' ({2})",
-								new Object[]{
-									allocation.getState(),
-									newState,
-									update.toString().replaceAll("\n", " ")});
-						this.allocation = update;
-						this.remoteService.removeHandler(this.qa, true);
-						this.remoteService.update(this.allocation);
-						break;
-					case REJECTED:
-					case ALLOCATED:
-					case SCHEDULED:
-					case REQUESTED:
-						LOG.log(Level.WARNING,
-								"Illegal state ({0}) , skipping remote update",
-								newState);
-						break;
-				}
-
-			} catch (InterruptedException ex) {
-				LOG.log(Level.SEVERE,
-						"Could not remove handler, skipping remote update",
-						ex);
+			ResourceAllocation request = ResourceAllocation.newBuilder(this.allocation).setState(newState).build();
+			switch (newState) {
+				case ABORTED:
+				case CANCELLED:
+				case RELEASED:
+					LOG.log(Level.FINE,
+							"attempting client allocation state change ''{0}'' -> ''{1}'' ({2})",
+							new Object[]{
+								allocation.getState(),
+								newState,
+								request.toString().replaceAll("\n", " ")});
+					this.remoteService.update(request);
+					break;
+				case REJECTED:
+				case ALLOCATED:
+				case SCHEDULED:
+				case REQUESTED:
+					LOG.log(Level.WARNING,
+							"Illegal state ({0}) , skipping remote update",
+							newState);
+					break;
 			}
 		} else {
 			LOG.log(Level.FINE,
@@ -184,29 +177,23 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 
 	@Override
 	public final void allocationUpdated(ResourceAllocation update) {
-		if (isAlive()) {
-			LOG.log(Level.FINE,
-					"resource allocation updated by server ''{0}'' -> ''{1}'' ({2})",
-					new Object[]{
-						this.allocation.getState(),
-						update.getState(),
-						update.toString().replaceAll("\n", " ")});
-			this.allocation = update;
-			for (SchedulerListener l : this.listeners) {
-				l.allocationUpdated(allocation);
-			}
+		LOG.log(Level.FINE,
+				"resource allocation updated by server ''{0}'' -> ''{1}'' ({2})",
+				new Object[]{
+					this.allocation.getState(),
+					update.getState(),
+					update.toString().replaceAll("\n", " ")});
+		this.allocation = update;
+		for (SchedulerListener l : this.listeners) {
+			l.allocationUpdated(allocation);
+		}
 
-			if (!isAlive()) {
-				try {
-					this.remoteService.removeHandler(this.qa, true);
-				} catch (InterruptedException | RSBException ex) {
-					LOG.log(Level.SEVERE, "Could not remove handler", ex);
-				}
+		if (!isAlive()) {
+			try {
+				this.remoteService.removeHandler(this.qa, true);
+			} catch (InterruptedException | RSBException ex) {
+				LOG.log(Level.SEVERE, "Could not remove handler", ex);
 			}
-		} else {
-			LOG.log(Level.FINE,
-					"resource allocation not active anymore ({0}), server update skipped: ''{1}''",
-					new Object[]{allocation.getState(), update.toString().replaceAll("\n", " ")});
 		}
 	}
 
@@ -222,27 +209,27 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 	public void shift(long amount) throws RSBException {
 		long newBegin = this.allocation.getSlot().getBegin().getTime() + amount;
 		long newEnd = this.allocation.getSlot().getEnd().getTime() + amount;
-		updateSlot(IntervalUtils.buildRst(newBegin, newEnd));
+		requestSlot(IntervalUtils.buildRst(newBegin, newEnd));
 	}
 
 	@Override
 	public void shiftTo(long timestamp) throws RSBException {
 		long newBegin = timestamp;
 		long newEnd = newBegin + this.allocation.getSlot().getEnd().getTime() - this.allocation.getSlot().getBegin().getTime();
-		updateSlot(IntervalUtils.buildRst(newBegin, newEnd));
+		requestSlot(IntervalUtils.buildRst(newBegin, newEnd));
 	}
 
 	@Override
 	public void extend(long amount) throws RSBException {
 		long newBegin = this.allocation.getSlot().getBegin().getTime();
 		long newEnd = this.allocation.getSlot().getEnd().getTime() + amount;
-		updateSlot(IntervalUtils.buildRst(newBegin, newEnd));
+		requestSlot(IntervalUtils.buildRst(newBegin, newEnd));
 	}
-	
+
 	@Override
 	public void extendTo(long timestamp) throws RSBException {
 		long newBegin = this.allocation.getSlot().getBegin().getTime();
 		long newEnd = timestamp;
-		updateSlot(IntervalUtils.buildRst(newBegin, newEnd));
+		requestSlot(IntervalUtils.buildRst(newBegin, newEnd));
 	}
 }
