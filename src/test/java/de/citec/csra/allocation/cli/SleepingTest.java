@@ -35,8 +35,7 @@ import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Prior
 public class SleepingTest {
 
 	public static void main(String[] args) throws InitializeException, InterruptedException, RSBException, ExecutionException {
-		ExecutableResource sl = new ExecutableResource("descr", Policy.PRESERVE, Priority.NORMAL, Initiator.SYSTEM, 0, 2000, "/dev/urandom") {
-			
+		ExecutableResource<Void> sl = new ExecutableResource("descr", Policy.PRESERVE, Priority.NORMAL, Initiator.SYSTEM, 0, 2000, "/dev/urandom") {
 			@Override
 			public Object execute() throws ExecutionException, InterruptedException {
 				try {
@@ -60,10 +59,10 @@ public class SleepingTest {
 					return "Could not refresh allocation";
 				}
 			}
-
+			
 			@Override
-			public boolean updated(ResourceAllocation allocation) {
-				return true;
+			public void timeChanged(long remaining) {
+				System.out.println("slice changed: " + remaining);
 			}
 		};
 		sl.startup();
