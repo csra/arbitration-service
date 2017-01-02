@@ -99,6 +99,7 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 			}
 		}).start();
 		try {
+			LOG.log(Level.FINE, "start listening to server updates");
 			this.remoteService = RemoteAllocationService.getInstance();
 			this.remoteService.addHandler(this.qa, true);
 			this.remoteService.update(this.allocation);
@@ -126,7 +127,6 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 		if (isAlive()) {
 			ResourceAllocation request = ResourceAllocation.newBuilder(this.allocation).setSlot(interval).build();
 			if (this.remoteService == null) {
-				System.out.println("shift without comm");
 				this.allocation = request;
 			} else {
 				LOG.log(Level.FINE,
@@ -190,6 +190,7 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 
 		if (!isAlive()) {
 			try {
+				LOG.log(Level.FINE, "stop listening to server updates");
 				this.remoteService.removeHandler(this.qa, true);
 			} catch (InterruptedException | RSBException ex) {
 				LOG.log(Level.SEVERE, "Could not remove handler", ex);
