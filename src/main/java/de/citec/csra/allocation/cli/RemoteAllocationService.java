@@ -17,6 +17,7 @@
 package de.citec.csra.allocation.cli;
 
 import de.citec.csra.allocation.srv.AllocationServer;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import rsb.Factory;
 import rsb.Handler;
@@ -77,6 +78,12 @@ public class RemoteAllocationService {
 	}
 
 	public void shutdown() throws RSBException, InterruptedException {
+		for(int i = 0; i < 100 && !this.listener.getHandlers().isEmpty(); i++) {
+			Thread.sleep(10);
+		}
+		if(!this.listener.getHandlers().isEmpty()){
+			LOG.log(Level.WARNING, "Shutting down although there may still be active listener threads");
+		}
 		this.informer.deactivate();
 		this.listener.deactivate();
 		instance = null;
