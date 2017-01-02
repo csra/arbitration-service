@@ -9,7 +9,7 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<maven.compiler.source>1.8</maven.compiler.source>
 		<maven.compiler.target>1.8</maven.compiler.target>
-		<rsb.version>[0.13,0.14-SNAPSHOT)</rsb.version>
+		<rsb.version>[0.15,0.16-SNAPSHOT)</rsb.version>
 		<netbeans.hint.license>gpl30</netbeans.hint.license>
 	</properties>
 	<repositories>
@@ -39,11 +39,6 @@
 			<groupId>rsb</groupId>
 			<artifactId>rst</artifactId>
 			<version>${rsb.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>rsb</groupId>
-			<artifactId>rst-sandbox-csra</artifactId>
-			<version>[0.13.254,)</version>
 		</dependency>
 		<dependency>
 			<groupId>net.time4j</groupId>
