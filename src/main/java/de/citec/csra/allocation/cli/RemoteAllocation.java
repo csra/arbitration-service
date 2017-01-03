@@ -17,6 +17,7 @@
 package de.citec.csra.allocation.cli;
 
 import de.citec.csra.allocation.IntervalUtils;
+import static de.citec.csra.allocation.cli.RemoteAllocationService.TIMEOUT;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
@@ -39,11 +40,14 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 
 	private final static Logger LOG = Logger.getLogger(RemoteAllocation.class.getName());
 
-	private ResourceAllocation allocation;
 	private final QueueAdapter qa;
 	private final BlockingQueue<ResourceAllocation> queue;
 	private final Set<SchedulerListener> listeners;
+	private final Object monitor = new Object();
+
+	private ResourceAllocation allocation;
 	private RemoteAllocationService remoteService;
+	private boolean inc;
 
 	public RemoteAllocation(ResourceAllocation allocation) {
 		this.qa = new QueueAdapter();
@@ -98,6 +102,31 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 				}
 			}
 		}).start();
+		synchronized (this.monitor) {
+			this.inc = false;
+		}
+		new Thread(() -> {
+			try {
+				synchronized (this.monitor) {
+					this.monitor.wait(TIMEOUT);
+					if (!this.inc) {
+						State newState = CANCELLED;
+						ResourceAllocation shutdown = ResourceAllocation.newBuilder(this.allocation).setState(newState).build();
+						LOG.log(Level.WARNING,
+								"client allocation request timed out after {0}ms, shutting down ''{1}'' -> ''{2}'' ({3})",
+								new Object[]{
+									TIMEOUT,
+									allocation.getState(),
+									newState,
+									shutdown.toString().replaceAll("\n", " ")});
+						allocationUpdated(shutdown);
+					}
+				}
+			} catch (InterruptedException ex) {
+				LOG.log(Level.SEVERE, "Event dispatching interrupted", ex);
+				Thread.currentThread().interrupt();
+			}
+		}).start();
 		try {
 			LOG.log(Level.FINE, "start listening to server updates");
 			this.remoteService = RemoteAllocationService.getInstance();
@@ -129,6 +158,43 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 			if (this.remoteService == null) {
 				this.allocation = request;
 			} else {
+				synchronized (this.monitor) {
+					this.inc = false;
+				}
+				new Thread(() -> {
+					try {
+						synchronized (this.monitor) {
+							this.monitor.wait(TIMEOUT);
+							if (isAlive() && !this.inc) {
+								State newState;
+								switch (this.allocation.getState()) {
+									case REQUESTED:
+										newState = State.CANCELLED;
+										break;
+									case SCHEDULED:
+										newState = State.CANCELLED;
+										break;
+									case ALLOCATED:
+									default:
+										newState = State.ABORTED;
+										break;
+								}
+								ResourceAllocation shutdown = ResourceAllocation.newBuilder(this.allocation).setState(newState).build();
+								LOG.log(Level.WARNING,
+										"client slot state change timed out after {0}ms, shutting down ''{1}'' -> ''{2}'' ({3})",
+										new Object[]{
+											TIMEOUT,
+											allocation.getState(),
+											newState,
+											shutdown.toString().replaceAll("\n", " ")});
+								allocationUpdated(shutdown);
+							}
+						}
+					} catch (InterruptedException ex) {
+						LOG.log(Level.SEVERE, "Event dispatching interrupted", ex);
+						Thread.currentThread().interrupt();
+					}
+				}).start();
 				LOG.log(Level.FINE,
 						"attempting client allocation slot change ''{0}'' -> ''{1}'' ({2})",
 						new Object[]{
@@ -151,6 +217,29 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 				case ABORTED:
 				case CANCELLED:
 				case RELEASED:
+					synchronized (this.monitor) {
+						this.inc = false;
+					}
+					new Thread(() -> {
+						try {
+							synchronized (this.monitor) {
+								this.monitor.wait(TIMEOUT);
+								if (!this.inc) {
+									LOG.log(Level.WARNING,
+											"client allocation state change timed out after {0}ms, forcing client update ''{1}'' -> ''{2}'' ({3})",
+											new Object[]{
+												TIMEOUT,
+												allocation.getState(),
+												newState,
+												request.toString().replaceAll("\n", " ")});
+									allocationUpdated(request);
+								}
+							}
+						} catch (InterruptedException ex) {
+							LOG.log(Level.SEVERE, "Event dispatching interrupted", ex);
+							Thread.currentThread().interrupt();
+						}
+					}).start();
 					LOG.log(Level.FINE,
 							"attempting client allocation state change ''{0}'' -> ''{1}'' ({2})",
 							new Object[]{
@@ -184,6 +273,12 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 					update.getState(),
 					update.toString().replaceAll("\n", " ")});
 		this.allocation = update;
+
+		synchronized (this.monitor) {
+			this.inc = true;
+			this.monitor.notifyAll();
+		}
+
 		for (SchedulerListener l : this.listeners) {
 			l.allocationUpdated(allocation);
 		}
