@@ -21,8 +21,11 @@ import java.util.concurrent.TimeoutException;
 import static org.junit.Assert.fail;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import rsb.Factory;
 import rsb.InitializeException;
 import rsb.RSBException;
+import rsb.config.ParticipantConfig;
+import rsb.config.TransportConfig;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initiator.SYSTEM;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy.MAXIMUM;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority.*;
@@ -34,11 +37,16 @@ import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocatio
  * (<a href=mailto:patrick.holthaus@uni-bielefeld.de>patrick.holthaus@uni-bielefeld.de</a>)
  */
 public class StartupTimeoutTest {
-	
+
 	private static final long TIMEOUT = RemoteAllocationService.TIMEOUT + 1000;
 
 	@BeforeClass
 	public static void initServer() throws InterruptedException {
+		ParticipantConfig cfg = Factory.getInstance().getDefaultParticipantConfig();
+		for (TransportConfig t : cfg.getTransports().values()) {
+			t.setEnabled(t.getName().equalsIgnoreCase("INPROCESS"));
+		}
+		Factory.getInstance().setDefaultParticipantConfig(cfg);
 		try {
 			AllocationServer.getInstance().deactivate();
 		} catch (InterruptedException | RSBException ex) {
