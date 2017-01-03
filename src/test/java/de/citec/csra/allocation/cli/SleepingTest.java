@@ -38,17 +38,17 @@ public class SleepingTest {
 			@Override
 			public Object execute() throws ExecutionException, InterruptedException {
 				try {
-					System.out.println("Starting with " + remaining() + "ms.");
+					System.out.println("Starting with " + getRemote().getRemainingTime() + "ms.");
 					long start = System.currentTimeMillis();
 					long amount = 0;
 					for(int i = 0; i < 20; i++){
 						Thread.sleep(500);
 						long now = System.currentTimeMillis();
-						shiftTo(now);
+						getRemote().shiftTo(now);
 						amount = now - start;
-						System.out.println("Already slept for " + amount +  "ms. Time remaining: " + remaining() + "ms.");
+						System.out.println("Already slept for " + amount +  "ms. Time remaining: " + getRemote().getRemainingTime() + "ms.");
 					}
-					Thread.sleep(remaining());
+					Thread.sleep(getRemote().getRemainingTime());
 					return "Slept for " + (System.currentTimeMillis() - start) +  "ms in total.";
 				} catch (InterruptedException ex) {
 					Logger.getLogger(SleepingTest.class.getName()).log(Level.SEVERE, "client interrupted", ex);

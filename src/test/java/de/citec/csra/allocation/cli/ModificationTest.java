@@ -17,6 +17,7 @@
 package de.citec.csra.allocation.cli;
 
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import rsb.InitializeException;
 import rsb.RSBException;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initiator;
@@ -30,8 +31,10 @@ import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocatio
  * (<a href=mailto:patrick.holthaus@uni-bielefeld.de>patrick.holthaus@uni-bielefeld.de</a>)
  */
 public class ModificationTest {
+	
+	private static final long TIMEOUT = RemoteAllocationService.TIMEOUT + 1000;
 
-	public static void main(String[] args) throws InitializeException, InterruptedException, RSBException, ExecutionException {
+	public static void main(String[] args) throws InitializeException, InterruptedException, RSBException, ExecutionException, TimeoutException {
 
 		AllocatableResource ar = new AllocatableResource("second class", Policy.MAXIMUM, Priority.NORMAL, Initiator.SYSTEM, 1000, 5000, "some-res");
 		AllocatableResource prio = new AllocatableResource("first class", Policy.MAXIMUM, Priority.HIGH, Initiator.SYSTEM, 10000, 1000, "some-res");
@@ -49,7 +52,13 @@ public class ModificationTest {
 //		ar.extend(5000);
 //		Thread.sleep(2000);
 //		ar.extend(-3000);
-		ar.await(RELEASED);
+		try {
+			ar.await(RELEASED, TIMEOUT);
+		} catch (TimeoutException ex) {
+			ex.printStackTrace();
+		}
+
+		ar.getState();
 
 		ar.startup();
 

@@ -16,7 +16,6 @@
  */
 package de.citec.csra.allocation.cli;
 
-import static de.citec.csra.allocation.cli.RemoteAllocationService.TIMEOUT;
 import de.citec.csra.allocation.srv.AllocationServer;
 import java.util.concurrent.TimeoutException;
 import static org.junit.Assert.fail;
@@ -43,6 +42,8 @@ import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocatio
  * (<a href=mailto:patrick.holthaus@uni-bielefeld.de>patrick.holthaus@uni-bielefeld.de</a>)
  */
 public class SupersedingTest {
+	
+	private static final long TIMEOUT = RemoteAllocationService.TIMEOUT + 1000;
 
 	@BeforeClass
 	public static void initServer() throws InterruptedException {
@@ -65,18 +66,18 @@ public class SupersedingTest {
 
 	@Test
 	public void testSingle() throws InitializeException, RSBException, InterruptedException, TimeoutException {
-		AllocatableResource res = new AllocatableResource("Original", MAXIMUM, NORMAL, SYSTEM, 1000, 500, "some-resource");
+		AllocatableResource res = new AllocatableResource("Original", MAXIMUM, NORMAL, SYSTEM, 100, 500, "some-resource");
 		res.startup();
 		res.await(REQUESTED, TIMEOUT);
 		res.await(SCHEDULED, TIMEOUT);
 		res.await(ALLOCATED, TIMEOUT);
-		res.await(RELEASED, 1500);
+		res.await(RELEASED, TIMEOUT);
 	}
 
 	@Test
 	public void testNonConflict() throws InitializeException, RSBException, InterruptedException, TimeoutException {
-		AllocatableResource some = new AllocatableResource("Some", MAXIMUM, NORMAL, SYSTEM, 0, 1000, "some-resource");
-		AllocatableResource other = new AllocatableResource("Other", MAXIMUM, NORMAL, SYSTEM, 0, 1000, "other-resource");
+		AllocatableResource some = new AllocatableResource("Some", MAXIMUM, NORMAL, SYSTEM, 100, 500, "some-resource");
+		AllocatableResource other = new AllocatableResource("Other", MAXIMUM, NORMAL, SYSTEM, 100, 500, "other-resource");
 
 		some.startup();
 		other.startup();
@@ -90,8 +91,8 @@ public class SupersedingTest {
 		some.await(ALLOCATED, TIMEOUT);
 		other.await(ALLOCATED, TIMEOUT);
 
-		some.await(RELEASED, 1000);
-		other.await(RELEASED, 1000);
+		some.await(RELEASED, TIMEOUT);
+		other.await(RELEASED, TIMEOUT);
 	}
 
 	@Test
@@ -110,15 +111,15 @@ public class SupersedingTest {
 		normal.await(ALLOCATED, TIMEOUT);
 		higher.await(ALLOCATED, TIMEOUT);
 
-		normal.await(RELEASED, 10000);
-		higher.await(RELEASED, 5000);
+		normal.await(RELEASED, TIMEOUT);
+		higher.await(RELEASED, TIMEOUT);
 	}
 	
 	@Test
 	public void testCancelling() throws InitializeException, RSBException, InterruptedException, TimeoutException {
-		AllocatableResource normal = new AllocatableResource("Normal", MAXIMUM, NORMAL, SYSTEM, 1000, 500, "some-resource");
-		AllocatableResource normal2 = new AllocatableResource("Normal2", MAXIMUM, NORMAL, SYSTEM, 2500, 500, "some-resource");
-		AllocatableResource higher = new AllocatableResource("Higher", MAXIMUM, HIGH, SYSTEM, 0, 3500, "some-resource");
+		AllocatableResource normal = new AllocatableResource("Normal", MAXIMUM, NORMAL, SYSTEM, 500, 500, "some-resource");
+		AllocatableResource normal2 = new AllocatableResource("Normal2", MAXIMUM, NORMAL, SYSTEM, 1500, 500, "some-resource");
+		AllocatableResource higher = new AllocatableResource("Higher", MAXIMUM, HIGH, SYSTEM, 0, 2500, "some-resource");
 		normal.startup();
 		normal.await(REQUESTED, TIMEOUT);
 		normal.await(SCHEDULED, TIMEOUT);
@@ -133,7 +134,7 @@ public class SupersedingTest {
 		normal2.startup();
 		normal2.await(REJECTED, TIMEOUT);
 		
-		higher.await(RELEASED, 3500);
+		higher.await(RELEASED, TIMEOUT);
 	}
 
 //	}

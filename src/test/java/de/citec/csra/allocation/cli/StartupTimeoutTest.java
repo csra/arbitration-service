@@ -16,7 +16,6 @@
  */
 package de.citec.csra.allocation.cli;
 
-import static de.citec.csra.allocation.cli.RemoteAllocationService.TIMEOUT;
 import de.citec.csra.allocation.srv.AllocationServer;
 import java.util.concurrent.TimeoutException;
 import static org.junit.Assert.fail;
@@ -35,6 +34,8 @@ import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocatio
  * (<a href=mailto:patrick.holthaus@uni-bielefeld.de>patrick.holthaus@uni-bielefeld.de</a>)
  */
 public class StartupTimeoutTest {
+	
+	private static final long TIMEOUT = RemoteAllocationService.TIMEOUT + 1000;
 
 	@BeforeClass
 	public static void initServer() throws InterruptedException {
@@ -48,15 +49,15 @@ public class StartupTimeoutTest {
 
 	@Test
 	public void testSchedule() throws InitializeException, RSBException, InterruptedException, TimeoutException {
-		AllocatableResource res = new AllocatableResource("Original", MAXIMUM, NORMAL, SYSTEM, 2000, 1000, "some-resource");
+		AllocatableResource res = new AllocatableResource("Original", MAXIMUM, NORMAL, SYSTEM, 0, 2 * TIMEOUT, "some-resource");
 		res.startup();
 		res.await(CANCELLED, TIMEOUT);
 	}
 
 	@Test
 	public void testNonConflict() throws InitializeException, RSBException, InterruptedException, TimeoutException {
-		AllocatableResource some = new AllocatableResource("Some", MAXIMUM, NORMAL, SYSTEM, 0, 5000, "some-resource");
-		AllocatableResource other = new AllocatableResource("Other", MAXIMUM, NORMAL, SYSTEM, 0, 5000, "other-resource");
+		AllocatableResource some = new AllocatableResource("Some", MAXIMUM, NORMAL, SYSTEM, 0, 2 * TIMEOUT, "some-resource");
+		AllocatableResource other = new AllocatableResource("Other", MAXIMUM, NORMAL, SYSTEM, 0, 2 * TIMEOUT, "other-resource");
 
 		some.startup();
 		other.startup();
