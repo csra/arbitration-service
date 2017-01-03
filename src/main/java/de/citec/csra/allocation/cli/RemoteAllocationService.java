@@ -36,6 +36,8 @@ import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
  * (<a href=mailto:patrick.holthaus@uni-bielefeld.de>patrick.holthaus@uni-bielefeld.de</a>)
  */
 public class RemoteAllocationService {
+	
+	public final static long TIMEOUT = 5000;
 
 	static {
 		DefaultConverterRepository.getDefaultConverterRepository()
@@ -84,6 +86,10 @@ public class RemoteAllocationService {
 		if(!this.listener.getHandlers().isEmpty()){
 			LOG.log(Level.WARNING, "Shutting down although there may still be active listener threads");
 		}
+		shutdownNow();
+	}
+	
+	public void shutdownNow() throws RSBException, InterruptedException {
 		this.informer.deactivate();
 		this.listener.deactivate();
 		instance = null;
