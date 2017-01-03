@@ -92,6 +92,9 @@ public class AllocationServer {
 	}
 
 	public void deactivate() throws RSBException, InterruptedException {
-		this.listener.deactivate();
+		if (this.listener.isActive()) {
+			this.listener.deactivate();
+		}
+		instance = null;
 	}
 }
