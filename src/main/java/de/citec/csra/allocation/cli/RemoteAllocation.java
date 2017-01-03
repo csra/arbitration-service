@@ -20,6 +20,7 @@ import de.citec.csra.allocation.IntervalUtils;
 import static de.citec.csra.allocation.cli.RemoteAllocationService.TIMEOUT;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -36,7 +37,7 @@ import rst.timing.IntervalType.Interval;
  * @author Patrick Holthaus
  * (<a href=mailto:patrick.holthaus@uni-bielefeld.de>patrick.holthaus@uni-bielefeld.de</a>)
  */
-public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListener {
+public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListener, TimedState {
 
 	private final static Logger LOG = Logger.getLogger(RemoteAllocation.class.getName());
 
@@ -50,9 +51,20 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 	private boolean inc;
 
 	public RemoteAllocation(ResourceAllocation allocation) {
+		this(ResourceAllocation.newBuilder(allocation));
+	}
+
+	public RemoteAllocation(ResourceAllocation.Builder builder) {
+		if (!builder.hasId()) {
+			builder.setId(UUID.randomUUID().toString().substring(0, 12));
+		}
+		if (builder.hasState()) {
+			LOG.log(Level.WARNING, "Invalid initial state ''{0}'', altering to ''{1}''.", new Object[]{builder.getState(), REQUESTED});
+		}
+		builder.setState(REQUESTED);
 		this.qa = new QueueAdapter();
 		this.queue = qa.getQueue();
-		this.allocation = allocation;
+		this.allocation = builder.build();
 		this.listeners = new HashSet<>();
 	}
 
@@ -68,7 +80,7 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 		this.listeners.clear();
 	}
 
-	private synchronized boolean isAlive() {
+	public synchronized boolean isAlive() {
 		switch (this.allocation.getState()) {
 			case REJECTED:
 			case CANCELLED:
@@ -80,6 +92,27 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 			case SCHEDULED:
 			default:
 				return true;
+		}
+	}
+
+	@Override
+	public State getCurrentState() {
+		return this.allocation.getState();
+	}
+
+	@Override
+	public long getRemainingTime() {
+		switch (this.allocation.getState()) {
+			case REQUESTED:
+			case SCHEDULED:
+			case ALLOCATED:
+				return Math.max(0, this.allocation.getSlot().getEnd().getTime() - System.currentTimeMillis() - 100);
+			case ABORTED:
+			case CANCELLED:
+			case REJECTED:
+			case RELEASED:
+			default:
+				return 0;
 		}
 	}
 

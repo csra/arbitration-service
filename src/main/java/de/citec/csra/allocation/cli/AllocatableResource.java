@@ -18,7 +18,6 @@ package de.citec.csra.allocation.cli;
 
 import de.citec.csra.allocation.IntervalUtils;
 import java.util.Arrays;
-import java.util.UUID;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
@@ -39,36 +38,28 @@ import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocatio
 public class AllocatableResource implements SchedulerListener, Executable {
 
 	private final static Logger LOG = Logger.getLogger(ExecutableResource.class.getName());
-	private RemoteAllocation remote;
-	private final ResourceAllocation.Builder builder;
+	private final RemoteAllocation remote;
 	private final LinkedBlockingDeque<State> queue = new LinkedBlockingDeque<>();
+	private final Object monitor = new Object();
 
 	public AllocatableResource(ResourceAllocation allocation) {
-		this.builder = ResourceAllocation.newBuilder(allocation);
+		this.remote = new RemoteAllocation(ResourceAllocation.newBuilder(allocation));
 	}
 
 	public AllocatableResource(String description, Policy policy, Priority priority, Initiator initiator, long delay, long duration, String... resources) {
-		this.builder = ResourceAllocation.newBuilder().
+		this.remote = new RemoteAllocation(ResourceAllocation.newBuilder().
 				setInitiator(initiator).
 				setPolicy(policy).
 				setPriority(priority).
 				setDescription(description).
 				setSlot(IntervalUtils.buildRelativeRst(delay, duration)).
-				addAllResourceIds(Arrays.asList(resources));
+				addAllResourceIds(Arrays.asList(resources)));
 	}
 
 	@Override
 	public void startup() throws RSBException {
 		if (this.queue.isEmpty()) {
-			this.queue.add(REQUESTED);
-			if (!this.builder.hasId()) {
-				this.builder.setId(UUID.randomUUID().toString().substring(0, 12));
-			}
-			if (this.builder.hasState()) {
-				LOG.log(Level.WARNING, "Invalid initial state ''{0}'', altering to ''{1}''.", new Object[]{this.builder.getState(), getState()});
-			}
-			this.builder.setState(REQUESTED);
-			this.remote = new RemoteAllocation(this.builder.build());
+			this.queue.add(this.remote.getCurrentState());
 			this.remote.addSchedulerListener(this);
 			this.remote.schedule();
 		} else {
@@ -96,12 +87,10 @@ public class AllocatableResource implements SchedulerListener, Executable {
 
 	@Override
 	public void allocationUpdated(ResourceAllocation allocation) {
-		this.queue.add(allocation.getState());
-	}
-
-	@Override
-	public String toString() {
-		return getClass().getSimpleName() + ((this.builder.getDescription() == null) ? "" : "[" + this.builder.getDescription() + "]");
+		synchronized (this.monitor) {
+			this.queue.add(allocation.getState());
+			this.monitor.notifyAll();
+		}
 	}
 
 	public RemoteAllocation getRemote() {
@@ -113,18 +102,22 @@ public class AllocatableResource implements SchedulerListener, Executable {
 	}
 
 	public void await(State state) throws InterruptedException {
-		while (!this.queue.contains(state)) {
-			Thread.sleep(50);
+		synchronized (this.monitor) {
+			while (!this.queue.contains(state)) {
+				this.monitor.wait();
+			}
 		}
 	}
 
 	public void await(State state, long timeout) throws InterruptedException, TimeoutException {
-		long start = System.currentTimeMillis();
-		while (!this.queue.contains(state)) {
-			if (start + timeout < System.currentTimeMillis()) {
+		synchronized (this.monitor) {
+			if (this.queue.contains(state)) {
+				return;
+			}
+			this.monitor.wait(timeout);
+			if (!this.queue.contains(state)) {
 				throw new TimeoutException();
 			}
-			Thread.sleep(50);
 		}
 	}
 }
