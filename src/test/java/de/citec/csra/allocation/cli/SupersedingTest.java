@@ -16,6 +16,7 @@
  */
 package de.citec.csra.allocation.cli;
 
+import static de.citec.csra.allocation.cli.RemoteAllocationService.TIMEOUT;
 import de.citec.csra.allocation.srv.AllocationServer;
 import java.util.concurrent.TimeoutException;
 import static org.junit.Assert.fail;
@@ -30,6 +31,8 @@ import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocatio
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy.MAXIMUM;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority.*;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.ALLOCATED;
+import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.CANCELLED;
+import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.REJECTED;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.RELEASED;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.REQUESTED;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.SCHEDULED;
@@ -61,77 +64,78 @@ public class SupersedingTest {
 	}
 
 	@Test
-	public void testSchedule() throws InitializeException, RSBException, InterruptedException, TimeoutException {
-		AllocatableResource res = new AllocatableResource("Original", MAXIMUM, NORMAL, SYSTEM, 2000, 1000, "some-resource");
+	public void testSingle() throws InitializeException, RSBException, InterruptedException, TimeoutException {
+		AllocatableResource res = new AllocatableResource("Original", MAXIMUM, NORMAL, SYSTEM, 1000, 500, "some-resource");
 		res.startup();
-		res.await(REQUESTED, 1000);
-		res.await(SCHEDULED, 1000);
-		res.await(ALLOCATED, 3000);
-		res.await(RELEASED, 5000);
+		res.await(REQUESTED, TIMEOUT);
+		res.await(SCHEDULED, TIMEOUT);
+		res.await(ALLOCATED, TIMEOUT);
+		res.await(RELEASED, 1500);
 	}
 
 	@Test
 	public void testNonConflict() throws InitializeException, RSBException, InterruptedException, TimeoutException {
-		AllocatableResource some = new AllocatableResource("Some", MAXIMUM, NORMAL, SYSTEM, 0, 5000, "some-resource");
-		AllocatableResource other = new AllocatableResource("Other", MAXIMUM, NORMAL, SYSTEM, 0, 5000, "other-resource");
+		AllocatableResource some = new AllocatableResource("Some", MAXIMUM, NORMAL, SYSTEM, 0, 1000, "some-resource");
+		AllocatableResource other = new AllocatableResource("Other", MAXIMUM, NORMAL, SYSTEM, 0, 1000, "other-resource");
 
 		some.startup();
 		other.startup();
 
-		some.await(REQUESTED, 1000);
-		other.await(REQUESTED, 1000);
+		some.await(REQUESTED, TIMEOUT);
+		other.await(REQUESTED, TIMEOUT);
 
-		some.await(SCHEDULED, 1000);
-		other.await(SCHEDULED, 1000);
+		some.await(SCHEDULED, TIMEOUT);
+		other.await(SCHEDULED, TIMEOUT);
 
-		some.await(ALLOCATED, 3000);
-		other.await(ALLOCATED, 3000);
+		some.await(ALLOCATED, TIMEOUT);
+		other.await(ALLOCATED, TIMEOUT);
 
-		some.await(RELEASED, 5000);
-		other.await(RELEASED, 5000);
+		some.await(RELEASED, 1000);
+		other.await(RELEASED, 1000);
 	}
 
-//	@Test
-//	public void testShortening() throws InitializeException, RSBException, InterruptedException {
-//		SleepingSkill normal = new SleepingSkill("Normal", "some-resource", MAXIMUM, NORMAL);
-//		SleepingSkill higher = new SleepingSkill("Higher", "some-resource", MAXIMUM, HIGH);
-//		normal.activate();
-//		higher.activate();
-//
-//		normal.schedule(2000, 4000);
-//		long shouldShift = normal.getDuration();
-//
-//		Thread.sleep(500);
-//		
-//		higher.schedule(3000, 2000);
-//		long shouldStay = higher.getDuration();
-//
-//		
-//		assertTrue("normal termination", higher.await());
-//		assertTrue("normal termination", normal.await());
-//
-//		long modified = normal.getDuration();
-//		long stable = higher.getDuration();
-//
-//		assertTrue("normal priority duration shifted", shouldShift > modified);
-//		assertTrue("higher priority duration stable", shouldStay == stable);
-//		
-//		
-//		assertTrue("scheduled only once", higher.getScheduled() == 1);
-//		assertTrue("allocated only once", higher.getAllocated() == 1);
-//
-//		assertTrue("not cancelled", higher.getCancelled() == 0);
-//		assertTrue("not rejected", higher.getRejected() == 0);
-//		assertTrue("not aborted", higher.getAborted() == 0);
-//		
-//		
-//		assertTrue("scheduled twice", normal.getScheduled() == 2);
-//		assertTrue("allocated only once", normal.getAllocated() == 1);
-//
-//		assertTrue("not cancelled", normal.getCancelled() == 0);
-//		assertTrue("not rejected", normal.getRejected() == 0);
-//		assertTrue("not aborted", normal.getAborted() == 0);
-//
+	@Test
+	public void testShortening() throws InitializeException, RSBException, InterruptedException, TimeoutException {
+		AllocatableResource normal = new AllocatableResource("Higher", MAXIMUM, NORMAL, SYSTEM, 0, 1500, "some-resource");
+		AllocatableResource higher = new AllocatableResource("Higher", MAXIMUM, HIGH, SYSTEM, 500, 500, "some-resource");
+		normal.startup();
+		higher.startup();
+
+		normal.await(REQUESTED, TIMEOUT);
+		higher.await(REQUESTED, TIMEOUT);
+
+		normal.await(SCHEDULED, TIMEOUT);
+		higher.await(SCHEDULED, TIMEOUT);
+
+		normal.await(ALLOCATED, TIMEOUT);
+		higher.await(ALLOCATED, TIMEOUT);
+
+		normal.await(RELEASED, 10000);
+		higher.await(RELEASED, 5000);
+	}
+	
+	@Test
+	public void testCancelling() throws InitializeException, RSBException, InterruptedException, TimeoutException {
+		AllocatableResource normal = new AllocatableResource("Normal", MAXIMUM, NORMAL, SYSTEM, 1000, 500, "some-resource");
+		AllocatableResource normal2 = new AllocatableResource("Normal2", MAXIMUM, NORMAL, SYSTEM, 2500, 500, "some-resource");
+		AllocatableResource higher = new AllocatableResource("Higher", MAXIMUM, HIGH, SYSTEM, 0, 3500, "some-resource");
+		normal.startup();
+		normal.await(REQUESTED, TIMEOUT);
+		normal.await(SCHEDULED, TIMEOUT);
+		
+		higher.startup();
+		higher.await(REQUESTED, TIMEOUT);
+		higher.await(SCHEDULED, TIMEOUT);
+		higher.await(ALLOCATED, TIMEOUT);
+
+		normal.await(CANCELLED, TIMEOUT);
+		
+		normal2.startup();
+		normal2.await(REJECTED, TIMEOUT);
+		
+		higher.await(RELEASED, 3500);
+	}
+
 //	}
 //	@Test
 //	public void testCancelling() throws InitializeException, RSBException, InterruptedException {
@@ -153,4 +157,4 @@ public class SupersedingTest {
 //		assertTrue("higher priority duration stable", shouldStay == stable);
 //
 //	}
-}
+	}

@@ -21,7 +21,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import rsb.InitializeException;
 import rsb.RSBException;
-import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initiator;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority;
