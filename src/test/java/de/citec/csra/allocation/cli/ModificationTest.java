@@ -16,8 +16,6 @@
  */
 package de.citec.csra.allocation.cli;
 
-import de.citec.csra.allocation.cli.AllocatableResource;
-import de.citec.csra.allocation.cli.RemoteAllocationService;
 import java.util.concurrent.ExecutionException;
 import rsb.InitializeException;
 import rsb.RSBException;
