@@ -65,22 +65,21 @@ public class Estimation {
 				setPriority(NORMAL);
 	}
 
-
 	private void initHandler() {
 		String stored = DefaultAllocationMap.getInstance().getHandler(this.submitter);
 		if (stored != null) {
 			this.handler = stored;
 		} else {
-			setHandler(this.submitter.replaceAll(ArbitrationServer.getScope(), ""));
+			setHandler(this.submitter.replaceAll(ArbitrationServer.getScope(), "/"));
 		}
 	}
-	
+
 	private void initSCXML() {
 		String stored = DefaultAllocationMap.getInstance().getSCXML(this.submitter);
 		if (stored != null) {
 			this.scxml = stored;
 		} else {
-			setHandler(this.submitter.
+			setSCXML(this.submitter.
 					replaceAll("coordination", "").
 					replaceAll("scenario", "").
 					replaceAll("/", ""));
@@ -95,11 +94,10 @@ public class Estimation {
 			addDuration(10000);
 		}
 	}
-	
+
 	private void initResources() {
 		Set<String> stored = DefaultAllocationMap.getInstance().getResources(this.submitter);
 		if (stored != null) {
-			System.out.println(stored);
 			this.resources = stored;
 		} else {
 			addResource(this.handler);
@@ -109,7 +107,7 @@ public class Estimation {
 	public String getHandler() {
 		return handler;
 	}
-	
+
 	public String getSCXML() {
 		return scxml;
 	}
@@ -139,7 +137,7 @@ public class Estimation {
 	}
 
 	void addResource(String resource) {
-		if(this.resources == null){
+		if (this.resources == null) {
 			this.resources = new HashSet<>();
 		}
 		this.resources.add(resource);
@@ -150,7 +148,7 @@ public class Estimation {
 		this.handler = handler;
 		DefaultAllocationMap.getInstance().setHandler(this.submitter, this.handler);
 	}
-	
+
 	void setSCXML(String scxml) {
 		this.scxml = scxml;
 		DefaultAllocationMap.getInstance().setHandler(this.submitter, this.scxml);
