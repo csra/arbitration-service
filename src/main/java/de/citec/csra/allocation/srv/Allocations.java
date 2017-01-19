@@ -146,6 +146,12 @@ public class Allocations {
 		}
 	}
 
+	ResourceAllocation remove(String id) {
+		synchronized (this.allocations) {
+			return this.allocations.remove(id);
+		}
+	}
+
 	public boolean handle(ResourceAllocation incoming) {
 		ResourceAllocation current = get(incoming.getId());
 		State currentState = (current != null) ? current.getState() : null;
@@ -260,7 +266,7 @@ public class Allocations {
 				setState(allocation.getId(), REJECTED);
 				setReason(allocation.getId(), reason);
 				this.notifications.update(allocation.getId(), true);
-				this.allocations.remove(allocation.getId());
+				remove(allocation.getId());
 			} else {
 				LOG.log(Level.WARNING, "attempt to reject allocation ''{0}'' ignored, no such allocation active", allocation.getId());
 			}
@@ -292,7 +298,7 @@ public class Allocations {
 					setReason(allocation.getId(), reason);
 				}
 				this.notifications.update(allocation.getId(), true);
-				this.allocations.remove(allocation.getId());
+				remove(allocation.getId());
 				return true;
 			} else {
 				LOG.log(Level.WARNING, "attempt to release allocation ''{0}'' ignored, no such allocation active", allocation.getId());

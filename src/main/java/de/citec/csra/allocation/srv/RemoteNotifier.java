@@ -122,17 +122,20 @@ public class RemoteNotifier implements Runnable {
 					}
 					Allocations.getInstance().setState(this.id, RELEASED);
 					publish();
+					Allocations.getInstance().remove(id);
 
 				} catch (InterruptedException interex) {
 					LOG.log(Level.WARNING, "Interrupted in ''{0}'' state, aborting: ", new String[]{get().getState().name(), get().toString().replaceAll("\n", " ")});
 					Allocations.getInstance().setState(this.id, ABORTED);
 					publish();
+					Allocations.getInstance().remove(id);
 					Thread.currentThread().interrupt();
 				}
 			} catch (InterruptedException interex) {
 				LOG.log(Level.WARNING, "Interrupted in ''{0}'' state, aborting: ", new String[]{get().getState().name(), get().toString().replaceAll("\n", " ")});
 				Allocations.getInstance().setState(this.id, CANCELLED);
 				publish();
+				Allocations.getInstance().remove(id);
 				Thread.currentThread().interrupt();
 			}
 		} catch (Exception e) {
