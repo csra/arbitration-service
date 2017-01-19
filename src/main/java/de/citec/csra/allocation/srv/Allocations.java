@@ -157,6 +157,7 @@ public class Allocations {
 		State currentState = (current != null) ? current.getState() : null;
 		State incomingState = incoming.getState();
 		String incomingStr = incoming.toString().replaceAll("\n", " ");
+		String currentStr = (current != null) ? current.toString().replaceAll("\n", " ") : null;
 
 		synchronized (this.allocations) {
 			switch (incomingState) {
@@ -166,8 +167,13 @@ public class Allocations {
 								"Performing client-requested state transition ''{0}'' -> ''{1}'' ({2})",
 								new Object[]{currentState, incomingState, incomingStr});
 						return request(incoming);
+					} else {
+						LOG.log(Level.INFO,
+								"Informing client about current allocation with id ''{0}'' ({1})",
+								new Object[]{incoming.getId(), currentStr});
+						return inform(incoming);
 					}
-					break;
+//					break;
 				case CANCELLED:
 					if (currentState != null && currentState.equals(SCHEDULED)) {
 						LOG.log(Level.INFO,
@@ -222,6 +228,13 @@ public class Allocations {
 			schedule(allocation);
 			return true;
 		}
+	}
+
+	boolean inform(ResourceAllocation allocation) {
+		synchronized (this.allocations) {
+			this.notifications.update(allocation.getId(), true);
+		}
+		return true;
 	}
 
 	boolean modify(ResourceAllocation allocation) {
