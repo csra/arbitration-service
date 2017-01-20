@@ -34,6 +34,8 @@ import java.util.logging.Logger;
  */
 public class DefaultAllocationMap {
 
+	private final boolean READONLY = true;
+
 	private final Map<String, Set<String>> resources = new HashMap<>();
 
 	private Properties resourceProperties;
@@ -64,7 +66,7 @@ public class DefaultAllocationMap {
 	public String getHandler(String key) {
 		return this.handlerProperties.getProperty(key);
 	}
-	
+
 	public String getSCXML(String key) {
 		return this.scxmlProperties.getProperty(key);
 	}
@@ -93,42 +95,43 @@ public class DefaultAllocationMap {
 	}
 
 	private void save() {
+		if (!READONLY) {
+			try (FileOutputStream os = new FileOutputStream("src/main/resources/etc/coordination/resources.properties")) {
 
-		try (FileOutputStream os = new FileOutputStream("src/main/resources/etc/coordination/resources.properties")) {
-			
-			for(Map.Entry<String, Set<String>> e : this.resources.entrySet()){
-				StringBuilder b = new StringBuilder();
-				for(String resource : e.getValue()){
-					b.append(resource);
-					b.append(":");
+				for (Map.Entry<String, Set<String>> e : this.resources.entrySet()) {
+					StringBuilder b = new StringBuilder();
+					for (String resource : e.getValue()) {
+						b.append(resource);
+						b.append(":");
+					}
+					if (b.length() > 0) {
+						b.deleteCharAt(b.length() - 1);
+					}
+					this.resourceProperties.put(e.getKey(), b.toString());
 				}
-				if(b.length() > 0){
-					b.deleteCharAt(b.length() - 1);
-				}
-				this.resourceProperties.put(e.getKey(), b.toString());
+				resourceProperties.store(os, "auto-saved");
+				os.close();
+			} catch (IOException ex) {
+				Logger.getLogger(DefaultAllocationMap.class.getName()).log(Level.SEVERE, null, ex);
 			}
-			resourceProperties.store(os, "auto-saved");
-			os.close();
-		} catch (IOException ex) {
-			Logger.getLogger(DefaultAllocationMap.class.getName()).log(Level.SEVERE, null, ex);
-		}
-		try (FileOutputStream os = new FileOutputStream("src/main/resources/etc/coordination/handlers.properties")) {
-			handlerProperties.store(os, "auto-saved");
-			os.close();
-		} catch (IOException ex) {
-			Logger.getLogger(DefaultAllocationMap.class.getName()).log(Level.SEVERE, null, ex);
-		}
-		try (FileOutputStream os = new FileOutputStream("src/main/resources/etc/coordination/scxml.properties")) {
-			handlerProperties.store(os, "auto-saved");
-			os.close();
-		} catch (IOException ex) {
-			Logger.getLogger(DefaultAllocationMap.class.getName()).log(Level.SEVERE, null, ex);
-		}
-		try (FileOutputStream os = new FileOutputStream("src/main/resources/etc/coordination/durations.properties")) {
-			durationProperties.store(os, "auto-saved");
-			os.close();
-		} catch (IOException ex) {
-			Logger.getLogger(DefaultAllocationMap.class.getName()).log(Level.SEVERE, null, ex);
+			try (FileOutputStream os = new FileOutputStream("src/main/resources/etc/coordination/handlers.properties")) {
+				handlerProperties.store(os, "auto-saved");
+				os.close();
+			} catch (IOException ex) {
+				Logger.getLogger(DefaultAllocationMap.class.getName()).log(Level.SEVERE, null, ex);
+			}
+			try (FileOutputStream os = new FileOutputStream("src/main/resources/etc/coordination/scxml.properties")) {
+				handlerProperties.store(os, "auto-saved");
+				os.close();
+			} catch (IOException ex) {
+				Logger.getLogger(DefaultAllocationMap.class.getName()).log(Level.SEVERE, null, ex);
+			}
+			try (FileOutputStream os = new FileOutputStream("src/main/resources/etc/coordination/durations.properties")) {
+				durationProperties.store(os, "auto-saved");
+				os.close();
+			} catch (IOException ex) {
+				Logger.getLogger(DefaultAllocationMap.class.getName()).log(Level.SEVERE, null, ex);
+			}
 		}
 	}
 
@@ -156,7 +159,7 @@ public class DefaultAllocationMap {
 		} catch (IOException ex) {
 			Logger.getLogger(DefaultAllocationMap.class.getName()).log(Level.SEVERE, null, ex);
 		}
-		
+
 		handlerProperties = new Properties();
 		try (FileInputStream is = new FileInputStream("src/main/resources/etc/coordination/handlers.properties")) {
 			handlerProperties.load(is);
