@@ -16,8 +16,11 @@
  */
 package de.citec.csra.allocation.cli;
 
+import de.citec.csra.allocation.IntervalUtils;
 import de.citec.csra.allocation.srv.AllocationServer;
+import java.util.UUID;
 import java.util.concurrent.TimeoutException;
+import org.junit.AfterClass;
 import static org.junit.Assert.fail;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -26,6 +29,7 @@ import rsb.InitializeException;
 import rsb.RSBException;
 import rsb.config.ParticipantConfig;
 import rsb.config.TransportConfig;
+import rst.communicationpatterns.ResourceAllocationType;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initiator.SYSTEM;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy.MAXIMUM;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority.*;
@@ -41,8 +45,8 @@ import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocatio
  * @author Patrick Holthaus
  * (<a href=mailto:patrick.holthaus@uni-bielefeld.de>patrick.holthaus@uni-bielefeld.de</a>)
  */
-public class SupersedingTest {
-	
+public class AllocationTest {
+
 	private static final long TIMEOUT = RemoteAllocationService.TIMEOUT + 1000;
 
 	@BeforeClass
@@ -62,6 +66,11 @@ public class SupersedingTest {
 			}
 		}).start();
 		Thread.sleep(200);
+	}
+
+	@AfterClass
+	public static void shutdownServer() throws InterruptedException, RSBException {
+		AllocationServer.getInstance().deactivate();
 	}
 
 	@Test
@@ -114,7 +123,7 @@ public class SupersedingTest {
 		normal.await(RELEASED, TIMEOUT);
 		higher.await(RELEASED, TIMEOUT);
 	}
-	
+
 	@Test
 	public void testCancelling() throws InitializeException, RSBException, InterruptedException, TimeoutException {
 		AllocatableResource normal = new AllocatableResource("Normal", MAXIMUM, NORMAL, SYSTEM, 500, 500, "some-resource");
@@ -123,39 +132,40 @@ public class SupersedingTest {
 		normal.startup();
 		normal.await(REQUESTED, TIMEOUT);
 		normal.await(SCHEDULED, TIMEOUT);
-		
+
 		higher.startup();
 		higher.await(REQUESTED, TIMEOUT);
 		higher.await(SCHEDULED, TIMEOUT);
 		higher.await(ALLOCATED, TIMEOUT);
 
 		normal.await(CANCELLED, TIMEOUT);
-		
+
 		normal2.startup();
 		normal2.await(REJECTED, TIMEOUT);
-		
+
 		higher.await(RELEASED, TIMEOUT);
 	}
 
-//	}
-//	@Test
-//	public void testCancelling() throws InitializeException, RSBException, InterruptedException {
-//		SleepingSkill normal = new SleepingSkill("Normal", "some-resource", MAXIMUM, NORMAL);
-//		SleepingSkill higher = new SleepingSkill("Higher", "some-resource", MAXIMUM, HIGH);
-//		normal.activate();
-//		higher.activate();
-//
-//		normal.schedule(0, 5000);
-//		Thread.sleep(500);
-//
-//		higher.schedule(0, 1000);
-//		long shouldStay = higher.getDuration();
-//
-//		assertTrue("normal termination", higher.await());
-//		assertFalse("normal termination", normal.await());
-//
-//		long stable = higher.getDuration();
-//		assertTrue("higher priority duration stable", shouldStay == stable);
-//
-//	}
+	@Test
+	public void testSameResource() throws RSBException, InterruptedException {
+		String id = UUID.randomUUID().toString();
+		ResourceAllocationType.ResourceAllocation res = ResourceAllocationType.ResourceAllocation.newBuilder().
+				setId(id).setState(REQUESTED).setDescription("Same").setPolicy(MAXIMUM).
+				setPriority(NORMAL).setInitiator(SYSTEM).setSlot(IntervalUtils.buildRelativeRst(0, 2000)).
+				addResourceIds("some-resource").build();
+
+		AllocatableResource ar = new AllocatableResource(res);
+		AllocatableResource ar2 = new AllocatableResource(res);
+		
+		ar.startup();
+		ar.await(SCHEDULED);
+		
+		ar2.startup();
+
+		ar.await(ALLOCATED);
+		ar2.await(ALLOCATED);
+
+		ar.await(RELEASED);
+		ar2.await(RELEASED);
 	}
+}

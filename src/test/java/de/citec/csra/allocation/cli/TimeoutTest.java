@@ -36,22 +36,18 @@ import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocatio
  * @author Patrick Holthaus
  * (<a href=mailto:patrick.holthaus@uni-bielefeld.de>patrick.holthaus@uni-bielefeld.de</a>)
  */
-public class StartupTimeoutTest {
+public class TimeoutTest {
 
 	private static final long TIMEOUT = RemoteAllocationService.TIMEOUT + 1000;
 
 	@BeforeClass
-	public static void initServer() throws InterruptedException {
+	public static void initServer() throws InterruptedException, RSBException {
 		ParticipantConfig cfg = Factory.getInstance().getDefaultParticipantConfig();
 		for (TransportConfig t : cfg.getTransports().values()) {
 			t.setEnabled(t.getName().equalsIgnoreCase("INPROCESS"));
 		}
 		Factory.getInstance().setDefaultParticipantConfig(cfg);
-		try {
-			AllocationServer.getInstance().deactivate();
-		} catch (InterruptedException | RSBException ex) {
-			fail("Exception in server thread: " + ex);
-		}
+		AllocationServer.getInstance().deactivate();
 		Thread.sleep(200);
 	}
 
