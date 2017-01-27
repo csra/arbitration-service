@@ -20,6 +20,7 @@ import de.citec.csra.allocation.srv.AllocationServer;
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Paint;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.text.FieldPosition;
@@ -58,6 +59,7 @@ import rsb.RSBException;
 import rsb.converter.DefaultConverterRepository;
 import rsb.converter.ProtocolBufferConverter;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
+import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State;
 import rst.communicationpatterns.TaskStateType;
 import rst.timing.IntervalType.Interval;
@@ -85,7 +87,7 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 	/**
 	 * Timer to refresh graph after every 1/4th of a second
 	 */
-	private final Timer timer = new Timer(250, this);
+	private final Timer timer = new Timer(100, this);
 	private final TimeSeriesCollection dataset = new TimeSeriesCollection();
 //	TaskSeriesCollection categories = new TaskSeriesCollection();
 
@@ -289,7 +291,7 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 
 	}
 
-	public void updateDataPoints(String id, String label, String resource, long start, long end, State state) {
+	public void updateDataPoints(String id, String label, String resource, long start, long end, State state, Priority prio) {
 		synchronized (this.dataset) {
 			TimeSeries series = this.dataset.getSeries(id);
 			if (series == null) {
@@ -300,6 +302,31 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 			series.setDomainDescription(label);
 			int stroke = -1;
 			Color c = null;
+
+			boolean randomcolor = false;
+			if (!randomcolor) {
+				switch (prio) {
+					case EMERGENCY:
+						c = Color.RED;
+						break;
+					case URGENT:
+						c = Color.ORANGE;
+						break;
+					case HIGH:
+						c = Color.YELLOW;	
+						break;
+					case NORMAL:
+						c = Color.GREEN;
+						break;
+					case LOW:
+						c = Color.BLUE;
+						break;
+					case NO:
+						c = Color.BLACK;
+						break;
+				}
+			}
+
 			switch (state) {
 				case REQUESTED:
 					stroke = 1;
@@ -319,7 +346,6 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 					c = Color.GRAY;
 					stroke = 1;
 					break;
-
 			}
 
 			XYLineAndShapeRenderer r = (XYLineAndShapeRenderer) this.chart.getXYPlot().getRendererForDataset(dataset);
@@ -339,12 +365,14 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 					r.setSeriesPaint(number, c);
 				}
 			}
+
 			long channel;
-			if (values.containsKey(resource)) {
-				channel = values.get(resource);
+			String key = resource; //prio
+			if (values.containsKey(key)) {
+				channel = values.get(key);
 			} else {
 				channel = events++;
-				values.put(resource, channel);
+				values.put(key, channel);
 			}
 
 			if (!series.isEmpty()) {
@@ -377,7 +405,7 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 			long end = update.getSlot().getEnd().getTime();
 			for (String resource : update.getResourceIdsList()) {
 				String label = update.getDescription().replaceAll(":.*", "") + " (" + update.getId().substring(0, 4) + ")";
-				updateDataPoints(update.getId() + ":" + resource, label, resource, start, end, update.getState());
+				updateDataPoints(update.getId() + ":" + resource, label, resource, start, end, update.getState(), update.getPriority());
 			}
 		}
 	}
