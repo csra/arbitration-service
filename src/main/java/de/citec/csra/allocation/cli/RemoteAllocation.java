@@ -106,7 +106,7 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 			case REQUESTED:
 			case SCHEDULED:
 			case ALLOCATED:
-				return Math.max(0, this.allocation.getSlot().getEnd().getTime() - System.currentTimeMillis() - 100);
+				return Math.max(0, this.allocation.getSlot().getEnd().getTime() - System.currentTimeMillis());
 			case ABORTED:
 			case CANCELLED:
 			case REJECTED:
