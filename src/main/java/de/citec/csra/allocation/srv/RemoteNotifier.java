@@ -16,12 +16,15 @@
  */
 package de.citec.csra.allocation.srv;
 
+import static de.citec.csra.allocation.AllocationUtils.shortString;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import rsb.Informer;
 import rsb.RSBException;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
+import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.*;
+import rst.timing.IntervalType.Interval;
 
 /**
  *
@@ -41,8 +44,12 @@ public class RemoteNotifier implements Runnable {
 		this.id = id;
 	}
 
-	private ResourceAllocation get() {
-		return Allocations.getInstance().get(id);
+	private State getState() {
+		return Allocations.getInstance().getState(id);
+	}
+	
+	private Interval getSlot() {
+		return Allocations.getInstance().getSlot(id);
 	}
 
 	private boolean isAlive() {
@@ -50,7 +57,7 @@ public class RemoteNotifier implements Runnable {
 	}
 
 	public void update() {
-		switch (get().getState()) {
+		switch (getState()) {
 			case REQUESTED:
 				break;
 			case REJECTED:
@@ -67,12 +74,12 @@ public class RemoteNotifier implements Runnable {
 	}
 
 	private void publish() {
-		ResourceAllocation allocation = get();
+		ResourceAllocation allocation = Allocations.getInstance().get(id);
 		try {
-			LOG.log(Level.INFO, "Publish allocation: {0}", allocation.toString().replaceAll("\n", " "));
+			LOG.log(Level.INFO, "Publish allocation: {0}", shortString(allocation));
 			this.informer.publish(allocation);
 		} catch (RSBException | NullPointerException ex) {
-			LOG.log(Level.SEVERE, "could not publish current allocation status '" + allocation.toString().replaceAll("\n", " ") + "'", ex);
+			LOG.log(Level.SEVERE, "could not publish current allocation status '" + shortString(allocation) + "'", ex);
 		}
 	}
 
@@ -89,7 +96,7 @@ public class RemoteNotifier implements Runnable {
 				if (!isAlive()) {
 					return;
 				}
-				scheduled = get().getState().equals(SCHEDULED);
+				scheduled = getState().equals(SCHEDULED);
 				try {
 					Thread.sleep(this.interval);
 				} catch (InterruptedException ex) {
@@ -104,36 +111,36 @@ public class RemoteNotifier implements Runnable {
 			}
 
 			try {
-				while ((scheduled = isAlive()) && System.currentTimeMillis() < get().getSlot().getBegin().getTime()) {
+				while ((scheduled = isAlive()) && System.currentTimeMillis() < getSlot().getBegin().getTime()) {
 					Thread.sleep(this.interval);
 				}
 				if (!scheduled) {
 					return;
 				}
-				Allocations.getInstance().setState(this.id, ALLOCATED);
+				Allocations.getInstance().setState(id, ALLOCATED);
 				publish();
 
 				try {
-					while (isAlive() && System.currentTimeMillis() < get().getSlot().getEnd().getTime()) {
+					while (isAlive() && System.currentTimeMillis() < getSlot().getEnd().getTime()) {
 						Thread.sleep(this.interval);
 					}
 					if (!isAlive()) {
 						return;
 					}
-					Allocations.getInstance().setState(this.id, RELEASED);
+					Allocations.getInstance().setState(id, RELEASED);
 					publish();
 					Allocations.getInstance().remove(id);
 
 				} catch (InterruptedException interex) {
-					LOG.log(Level.WARNING, "Interrupted in ''{0}'' state, aborting: ", new String[]{get().getState().name(), get().toString().replaceAll("\n", " ")});
-					Allocations.getInstance().setState(this.id, ABORTED);
+					LOG.log(Level.WARNING, "Interrupted in ''{0}'' state, aborting: ", new String[]{getState().name(), id});
+					Allocations.getInstance().setState(id, ABORTED);
 					publish();
 					Allocations.getInstance().remove(id);
 					Thread.currentThread().interrupt();
 				}
 			} catch (InterruptedException interex) {
-				LOG.log(Level.WARNING, "Interrupted in ''{0}'' state, aborting: ", new String[]{get().getState().name(), get().toString().replaceAll("\n", " ")});
-				Allocations.getInstance().setState(this.id, CANCELLED);
+				LOG.log(Level.WARNING, "Interrupted in ''{0}'' state, aborting: ", new String[]{getState().name(), id});
+				Allocations.getInstance().setState(id, CANCELLED);
 				publish();
 				Allocations.getInstance().remove(id);
 				Thread.currentThread().interrupt();
