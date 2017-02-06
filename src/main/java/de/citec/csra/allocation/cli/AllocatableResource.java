@@ -114,10 +114,17 @@ public class AllocatableResource implements SchedulerListener, Executable {
 			if (this.queue.contains(state)) {
 				return;
 			}
-			this.monitor.wait(timeout);
-			if (!this.queue.contains(state)) {
-				throw new TimeoutException();
+			long start = System.currentTimeMillis();
+			long remaining = timeout;
+			while (remaining > 0) {
+				this.monitor.wait(remaining);
+				if (this.queue.contains(state)) {
+					return;
+				} else {
+					remaining = timeout - (System.currentTimeMillis() - start);
+				}
 			}
+			throw new TimeoutException("Waiting for state '" + state.name() + "' timed out after " + timeout + "ms.");
 		}
 	}
 }
