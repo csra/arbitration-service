@@ -66,9 +66,13 @@ public class TaskReceiver implements Runnable {
 	}
 
 	public void deactivate() throws InterruptedException, RSBException {
-		this.listener.deactivate();
+		if (this.listener.isActive()) {
+			this.listener.deactivate();
+			LOG.log(Level.INFO, "Deactivated listener at ''{0}''", listener.getScope());
+		} else {
+			LOG.log(Level.WARNING, "Listener at  ''{0}'' already inactive", listener.getScope());
+		}
 		this.listeners.clear();
-		LOG.log(Level.INFO, "Deactivated listener at ''{0}''", listener.getScope());
 	}
 
 	public void addTaskListener(TaskListener l) {
