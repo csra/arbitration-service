@@ -71,11 +71,6 @@ public class ContinuityTest {
 			public String execute() throws ExecutionException, InterruptedException {
 				return "computed result";
 			}
-			
-			@Override
-			public void timeChanged(long remaining) {
-			}
-			
 		};
 		long before = System.currentTimeMillis();
 		t.startup();
@@ -93,11 +88,6 @@ public class ContinuityTest {
 			public String execute() throws ExecutionException, InterruptedException {
 				return "computed result";
 			}
-			
-			@Override
-			public void timeChanged(long remaining) {
-			}
-			
 		};
 		long before = System.currentTimeMillis();
 		t.startup();
