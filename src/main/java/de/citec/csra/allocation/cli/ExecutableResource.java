@@ -198,7 +198,6 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 			case SCHEDULED:
 				break;
 			case ALLOCATED:
-				timeChanged(this.remote.getRemainingTime());
 				break;
 			case REJECTED:
 			case CANCELLED:
@@ -212,7 +211,5 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 	}
 
 	public abstract T execute() throws ExecutionException, InterruptedException;
-
-	public abstract void timeChanged(long remaining);
-
+	
 }
