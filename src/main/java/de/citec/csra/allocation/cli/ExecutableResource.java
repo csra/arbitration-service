@@ -38,6 +38,7 @@ import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocatio
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.RELEASED;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.REQUESTED;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.SCHEDULED;
+import static de.citec.csra.allocation.cli.ExecutableResource.Completion.EXPIRE;
 
 /**
  *
@@ -46,22 +47,28 @@ import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocatio
  */
 public abstract class ExecutableResource<T> implements SchedulerListener, Executable, Callable<T> {
 
+	public enum Completion {
+		EXPIRE,
+		RETAIN,
+		MONITOR
+	}
+
 	private final static Logger LOG = Logger.getLogger(ExecutableResource.class.getName());
 	private final ExecutorService executor = Executors.newSingleThreadExecutor();
-	private final boolean block;
+	private final Completion completion;
 	private final RemoteAllocation remote;
 	private Future<T> result;
 
 	public ExecutableResource(ResourceAllocation allocation) {
-		this(allocation, false);
+		this(allocation, EXPIRE);
 	}
 
-	public ExecutableResource(ResourceAllocation allocation, boolean block) {
+	public ExecutableResource(ResourceAllocation allocation, Completion completion) {
 		this.remote = new RemoteAllocation(ResourceAllocation.newBuilder(allocation));
-		this.block = block;
+		this.completion = completion;
 	}
 
-	public ExecutableResource(String description, Policy policy, Priority priority, Initiator initiator, long delay, long duration, boolean block, String... resources) {
+	public ExecutableResource(String description, Policy policy, Priority priority, Initiator initiator, long delay, long duration, Completion completion, String... resources) {
 		this.remote = new RemoteAllocation(ResourceAllocation.newBuilder().
 				setInitiator(initiator).
 				setPolicy(policy).
@@ -69,11 +76,11 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 				setDescription(description).
 				setSlot(IntervalUtils.buildRelativeRst(delay, duration)).
 				addAllResourceIds(Arrays.asList(resources)));
-		this.block = block;
+		this.completion = completion;
 	}
 
 	public ExecutableResource(String description, Policy policy, Priority priority, Initiator initiator, long delay, long duration, String... resources) {
-		this(description, policy, priority, initiator, delay, duration, false, resources);
+		this(description, policy, priority, initiator, delay, duration, EXPIRE, resources);
 	}
 
 	private void terminateExecution(boolean interrupt) {
@@ -148,19 +155,25 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 			LOG.log(Level.FINE, "Starting user code execution for {0}ms.", this.remote.getRemainingTime());
 			res = execute();
 			LOG.log(Level.FINE, "User code execution returned with ''{0}''", res);
-			if (block) {
-				synchronized (this) {
-					long time;
-					while ((time = this.remote.getRemainingTime()) > 0 && !Thread.interrupted()) {
-						LOG.log(Level.FINER, "blocking for {0}ms.", time);
-						this.wait(time);
+			switch (completion) {
+				case MONITOR:
+					synchronized (this) {
+						long time;
+						while ((time = this.remote.getRemainingTime()) > 0 && !Thread.interrupted()) {
+							LOG.log(Level.FINER, "blocking for {0}ms.", time);
+							this.wait(time);
+						}
 					}
-				}
-			}
-			try {
-				this.remote.release();
-			} catch (RSBException ex) {
-				LOG.log(Level.WARNING, "Could not release resources at server", ex);
+//					no break -> release resource after waiting
+				case EXPIRE:
+					try {
+						this.remote.release();
+					} catch (RSBException ex) {
+						LOG.log(Level.WARNING, "Could not release resources at server", ex);
+					}
+					break;
+				case RETAIN:
+					break;
 			}
 		} catch (ExecutionException ex) {
 			LOG.log(Level.WARNING, "User code execution failed, aborting allocation at server", ex);
@@ -184,8 +197,8 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 	public Future<T> getFuture() {
 		return this.result;
 	}
-	
-	public RemoteAllocation getRemote(){
+
+	public RemoteAllocation getRemote() {
 		return this.remote;
 	}
 
@@ -211,5 +224,5 @@ public abstract class ExecutableResource<T> implements SchedulerListener, Execut
 	}
 
 	public abstract T execute() throws ExecutionException, InterruptedException;
-	
+
 }
