@@ -16,7 +16,7 @@
  */
 package de.citec.csra.allocation.cli;
 
-import de.citec.csra.util.rst.IntervalUtils;
+import de.citec.csra.rst.util.IntervalUtils;
 import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeoutException;

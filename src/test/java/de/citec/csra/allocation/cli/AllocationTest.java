@@ -16,7 +16,7 @@
  */
 package de.citec.csra.allocation.cli;
 
-import de.citec.csra.util.rst.IntervalUtils;
+import de.citec.csra.rst.util.IntervalUtils;
 import de.citec.csra.allocation.srv.AllocationServer;
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
