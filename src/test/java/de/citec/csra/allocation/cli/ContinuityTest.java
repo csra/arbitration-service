@@ -18,6 +18,7 @@ package de.citec.csra.allocation.cli;
 
 import static de.citec.csra.allocation.cli.ExecutableResource.Completion.EXPIRE;
 import static de.citec.csra.allocation.cli.ExecutableResource.Completion.MONITOR;
+import static de.citec.csra.allocation.cli.ExecutableResource.Completion.RETAIN;
 import de.citec.csra.allocation.srv.AllocationServer;
 import java.util.concurrent.ExecutionException;
 import org.junit.AfterClass;
@@ -78,8 +79,9 @@ public class ContinuityTest {
 		t.startup();
 		t.getFuture().get();
 		long after = System.currentTimeMillis();
+		long runtime = after - before;
 		
-		assertTrue("block for allocated time", after - before < duration);
+		assertTrue("block time smaller than estimated duration", runtime < duration);
 	}
 	
 	@Test
@@ -95,7 +97,30 @@ public class ContinuityTest {
 		t.startup();
 		t.getFuture().get();
 		long after = System.currentTimeMillis();
+		long runtime = after - before;
 		
-		assertTrue("block for allocated time", after - before >= duration);
+		assertTrue("at least block for allocated time", runtime >= duration);
+	}
+	
+	@Test
+	public void testLazyContinousAllocation() throws RSBException, InterruptedException, ExecutionException{
+		long duration = 500;
+		ExecutableResource<String> t = new ExecutableResource<String>("Blocker", MAXIMUM, NORMAL, SYSTEM, 0, duration, RETAIN, "some-resource") {
+			@Override
+			public String execute() throws ExecutionException, InterruptedException {
+				return "computed result";
+			}
+		};
+		long before = System.currentTimeMillis();
+		t.startup();
+		t.getFuture().get();
+		long after = System.currentTimeMillis();
+		
+		long remaining = t.getRemote().getRemainingTime();
+		long runtime = after - before;
+		
+		assertTrue("there is time remaining", remaining > 0);
+		assertTrue("remaining time smaller than allocated", remaining < duration);
+		assertTrue("remaining time plus runtime larger than allocated time", runtime + remaining >= duration);
 	}
 }
