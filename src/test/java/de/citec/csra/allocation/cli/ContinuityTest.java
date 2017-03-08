@@ -16,6 +16,7 @@
  */
 package de.citec.csra.allocation.cli;
 
+import static de.citec.csra.allocation.cli.ExecutableResource.Completion.EXPIRE;
 import static de.citec.csra.allocation.cli.ExecutableResource.Completion.MONITOR;
 import de.citec.csra.allocation.srv.AllocationServer;
 import java.util.concurrent.ExecutionException;
@@ -67,7 +68,7 @@ public class ContinuityTest {
 	@Test
 	public void testImmediateRelease() throws RSBException, InterruptedException, ExecutionException{
 		long duration = 500;
-		ExecutableResource<String> t = new ExecutableResource<String>("Blocker", MAXIMUM, NORMAL, SYSTEM, 0, duration, MONITOR, "some-resource") {
+		ExecutableResource<String> t = new ExecutableResource<String>("Blocker", MAXIMUM, NORMAL, SYSTEM, 0, duration, EXPIRE, "some-resource") {
 			@Override
 			public String execute() throws ExecutionException, InterruptedException {
 				return "computed result";
