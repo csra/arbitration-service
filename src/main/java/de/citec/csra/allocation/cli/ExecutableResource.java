@@ -16,7 +16,7 @@
  */
 package de.citec.csra.allocation.cli;
 
-import de.citec.csra.allocation.IntervalUtils;
+import de.citec.csra.util.rst.IntervalUtils;
 import java.util.Arrays;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;

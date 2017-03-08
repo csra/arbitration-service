@@ -16,11 +16,9 @@
  */
 package de.citec.csra.allocation.cli;
 
-import de.citec.csra.allocation.AllocationUtils;
-import de.citec.csra.allocation.IntervalUtils;
+import de.citec.csra.util.rst.IntervalUtils;
 import static de.citec.csra.allocation.cli.RemoteAllocationService.TIMEOUT;
 import java.util.HashSet;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;

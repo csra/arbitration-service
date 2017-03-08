@@ -41,19 +41,9 @@
 			<version>${rsb.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>net.time4j</groupId>
-			<artifactId>time4j-core</artifactId>
-			<version>4.15</version>
-		</dependency>
-		<dependency>
-			<groupId>net.time4j</groupId>
-			<artifactId>time4j-misc</artifactId>
-			<version>4.15</version>
-		</dependency>
-		<dependency>
-			<groupId>net.time4j</groupId>
-			<artifactId>time4j-range</artifactId>
-			<version>4.15</version>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>rst-utils</artifactId>
+			<version>1.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.jfree</groupId>
