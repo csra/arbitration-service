@@ -16,6 +16,7 @@
  */
 package de.citec.csra.allocation.cli;
 
+import de.citec.csra.allocation.AllocationUtils;
 import de.citec.csra.allocation.IntervalUtils;
 import static de.citec.csra.allocation.cli.RemoteAllocationService.TIMEOUT;
 import java.util.HashSet;
@@ -43,7 +44,7 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 
 	private final QueueAdapter qa;
 	private final BlockingQueue<ResourceAllocation> queue;
-	private final Set<SchedulerListener> listeners;
+	private final HashSet<SchedulerListener> listeners;
 	private final Object monitor = new Object();
 
 	private ResourceAllocation allocation;
@@ -62,22 +63,28 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 			LOG.log(Level.WARNING, "Invalid initial state ''{0}'', altering to ''{1}''.", new Object[]{builder.getState(), REQUESTED});
 		}
 		builder.setState(REQUESTED);
-		this.qa = new QueueAdapter();
-		this.queue = qa.getQueue();
 		this.allocation = builder.build();
 		this.listeners = new HashSet<>();
+		this.qa = new QueueAdapter();
+		this.queue = qa.getQueue();
 	}
 
 	public void addSchedulerListener(SchedulerListener l) {
-		this.listeners.add(l);
+		synchronized (this.listeners) {
+			this.listeners.add(l);
+		}
 	}
 
 	public void removeSchedulerListener(SchedulerListener l) {
-		this.listeners.remove(l);
+		synchronized (this.listeners) {
+			this.listeners.remove(l);
+		}
 	}
 
 	public void removeAllSchedulerListeners() {
-		this.listeners.clear();
+		synchronized (this.listeners) {
+			this.listeners.clear();
+		}
 	}
 
 	public synchronized boolean isAlive() {
@@ -134,7 +141,7 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 					return;
 				}
 			}
-		}).start();
+		}, "allocation-dispatcher#" + this.allocation.getId()).start();
 		synchronized (this.monitor) {
 			this.inc = false;
 		}
@@ -159,7 +166,7 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 				LOG.log(Level.SEVERE, "Event dispatching interrupted", ex);
 				Thread.currentThread().interrupt();
 			}
-		}).start();
+		}, "allocation-request-timeout#" + this.allocation.getId()).start();
 		try {
 			LOG.log(Level.FINE, "start listening to server updates");
 			this.remoteService = RemoteAllocationService.getInstance();
@@ -227,7 +234,7 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 						LOG.log(Level.SEVERE, "Event dispatching interrupted", ex);
 						Thread.currentThread().interrupt();
 					}
-				}).start();
+				}, "allocation-slot-timeout#" + this.allocation.getId()).start();
 				LOG.log(Level.FINE,
 						"attempting client allocation slot change ''{0}'' -> ''{1}'' ({2})",
 						new Object[]{
@@ -272,7 +279,7 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 							LOG.log(Level.SEVERE, "Event dispatching interrupted", ex);
 							Thread.currentThread().interrupt();
 						}
-					}).start();
+					}, "allocation-state-timeout#" + this.allocation.getId()).start();
 					LOG.log(Level.FINE,
 							"attempting client allocation state change ''{0}'' -> ''{1}'' ({2})",
 							new Object[]{
@@ -312,8 +319,10 @@ public class RemoteAllocation implements Schedulable, Adjustable, SchedulerListe
 			this.monitor.notifyAll();
 		}
 
-		for (SchedulerListener l : this.listeners) {
-			l.allocationUpdated(allocation);
+		synchronized (this.listeners) {
+			((HashSet<SchedulerListener>) listeners.clone()).forEach((l) -> {
+				l.allocationUpdated(allocation);
+			});
 		}
 
 		if (!isAlive()) {
