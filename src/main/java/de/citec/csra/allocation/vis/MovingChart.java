@@ -20,7 +20,6 @@ import de.citec.csra.allocation.srv.AllocationServer;
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Paint;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.text.FieldPosition;
@@ -69,6 +68,9 @@ import rst.timing.IntervalType.Interval;
  */
 public class MovingChart extends ApplicationFrame implements ActionListener, Handler {
 
+	private final static int DEFAULT_PAST = 60000;
+	private final static int DEFAULT_FUTURE = 180000;
+
 	static {
 		DefaultConverterRepository.getDefaultConverterRepository()
 				.addConverter(new ProtocolBufferConverter<>(ResourceAllocation.getDefaultInstance()));
@@ -82,8 +84,9 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 	 * The time series data.
 	 */
 	private final TimeSeries plustime;
-	private final int PAST = 60000;
-	private final int FUTURE = 1800000;
+	private final int past;
+	private final int future;
+
 	/**
 	 * Timer to refresh graph after every 1/4th of a second
 	 */
@@ -99,23 +102,21 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 	Map<String, Long> values = new HashMap<>();
 	final JFreeChart chart;
 
-	/**
-	 * Constructs a new dynamic chart application.
-	 *
-	 * @param title the frame title.
-	 */
-	public MovingChart(final String title) {
+	public MovingChart(final String title, int past, int future) {
 
 		super(title);
+
+		this.past = past;
+		this.future = future;
 
 		this.marker = new ValueMarker(System.currentTimeMillis());
 		marker.setPaint(Color.black);
 
-		this.plustime = new TimeSeries("+" + FUTURE / 1000 + "s");
+		this.plustime = new TimeSeries("+" + future / 1000 + "s");
 		this.dataset.addSeries(this.plustime);
 		this.chart = createChart(this.dataset);
 //		this.timer.setInitialDelay(1000);
-		this.plustime.addOrUpdate(new Millisecond(new Date(System.currentTimeMillis() - PAST)), 0);
+		this.plustime.addOrUpdate(new Millisecond(new Date(System.currentTimeMillis() - past)), 0);
 
 		//Sets background color of chart
 		chart.setBackgroundPaint(Color.LIGHT_GRAY);
@@ -173,7 +174,7 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 		xaxis.setAutoRange(true);
 		xaxis.setTickLabelsVisible(false);
 		//Domain axis would show data of 60 seconds for a time
-		xaxis.setFixedAutoRange(PAST + FUTURE);  // 60 seconds
+		xaxis.setFixedAutoRange(this.past + this.future);  // 60 seconds
 		xaxis.setVerticalTickLabels(true);
 		ValueAxis yaxis = plot.getRangeAxis();
 		yaxis.setAutoRangeMinimumSize(1.8);
@@ -235,7 +236,7 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 	@Override
 	public void actionPerformed(final ActionEvent e) {
 
-		this.plustime.addOrUpdate(new Millisecond(new Date(System.currentTimeMillis() + FUTURE)), 0);
+		this.plustime.addOrUpdate(new Millisecond(new Date(System.currentTimeMillis() + this.future)), 0);
 		List<TimeSeries> ts = this.dataset.getSeries();
 		List<TimeSeries> del = new LinkedList<>();
 		long now = System.currentTimeMillis();
@@ -251,7 +252,7 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 						last = end;
 					}
 				}
-				if (now - last > PAST) {
+				if (now - last > this.past) {
 					del.add(t);
 				} else {
 					active++;
@@ -280,7 +281,25 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 	 */
 	public static void main(final String[] args) throws InterruptedException, RSBException {
 
-		final MovingChart demo = new MovingChart("Resource Allocation Chart");
+		int past = DEFAULT_PAST;
+		int future = DEFAULT_FUTURE;
+
+		if (args.length > 0) {
+			if (args.length == 2) {
+				try {
+					past = Integer.valueOf(args[0]);
+					future = Integer.valueOf(args[1]);
+				} catch (IllegalArgumentException ex) {
+					System.err.println("Could not read integer values for PAST or FUTURE.\nusage: csra-allocation-viewer [PAST FUTURE]");
+					System.exit(1);
+				}
+			} else {
+				System.err.println("usage: csra-allocation-viewer [PAST FUTURE]");
+				System.exit(1);
+			}
+		}
+
+		final MovingChart demo = new MovingChart("Resource Allocation Chart", past, future);
 		Listener l = Factory.getInstance().createListener(AllocationServer.getScope());
 		l.addHandler(demo, true);
 
@@ -313,7 +332,7 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 						c = Color.ORANGE;
 						break;
 					case HIGH:
-						c = Color.YELLOW;	
+						c = Color.YELLOW;
 						break;
 					case NORMAL:
 						c = Color.GREEN;
