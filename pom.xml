@@ -43,7 +43,7 @@
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>rst-utils</artifactId>
-			<version>1.0</version>
+			<version>1.0-SNAPSHOT</version>
 		</dependency>
 		<dependency>
 			<groupId>org.jfree</groupId>
@@ -53,7 +53,7 @@
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>rta-lib</artifactId>
-			<version>1.0</version>
+			<version>1.0-SNAPSHOT</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
