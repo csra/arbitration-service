@@ -16,8 +16,8 @@
  */
 package de.citec.csra.allocation.srv;
 
-import static de.citec.csra.rst.util.AllocationUtils.shortString;
 import de.citec.csra.rst.util.IntervalUtils;
+import static de.citec.csra.rst.util.StringRepresentation.shortString;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;

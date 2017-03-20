@@ -16,7 +16,7 @@
  */
 package de.citec.csra.allocation.srv;
 
-import static de.citec.csra.rst.util.AllocationUtils.shortString;
+import static de.citec.csra.rst.util.StringRepresentation.shortString;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import rsb.Informer;
