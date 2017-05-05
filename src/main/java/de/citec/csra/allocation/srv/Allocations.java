@@ -46,6 +46,7 @@ public class Allocations {
 	private static Allocations instance;
 	private final Map<String, ResourceAllocation> allocations;
 	private final NotificationService notifications;
+	private final Pattern ticket = Pattern.compile("^(.+)#(.+)$");
 
 	private final static Logger LOG = Logger.getLogger(Allocations.class.getName());
 
@@ -340,7 +341,6 @@ public class Allocations {
 	}
 
 	synchronized boolean isPermitted(String one, String two) {
-		Pattern ticket = Pattern.compile("^(.+)#(.+)$");
 		Matcher m1 = ticket.matcher(one);
 		Matcher m2 = ticket.matcher(two);
 		if (m1.matches() && m2.matches()) {
