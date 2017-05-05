@@ -66,7 +66,6 @@ public class Allocations {
 //			return new HashMap<>(this.allocations);
 //		}
 //	}
-	
 	synchronized boolean isAlive(String id) {
 		if (this.allocations.containsKey(id)) {
 			ResourceAllocation a = this.allocations.get(id);
@@ -340,20 +339,35 @@ public class Allocations {
 		return contains;
 	}
 
+	synchronized boolean isPermitted(String one, String two) {
+		Pattern ticket = Pattern.compile("^(.+)#(.+)$");
+		Matcher m1 = ticket.matcher(one);
+		Matcher m2 = ticket.matcher(two);
+		if (m1.matches() && m2.matches()) {
+			String id1 = m1.group(2);
+			String id2 = m2.group(2);
+			return id1.equals(id2);
+		} else {
+			return false;
+		}
+	}
+
 	synchronized List<ResourceAllocation> getBlockers(ResourceAllocation allocation, boolean refit) {
 		Map<String, ResourceAllocation> storedMap = new HashMap<>(this.allocations);
 		storedMap.remove(allocation.getId());
 
 		List<ResourceAllocation> blocking = new LinkedList<>();
 		for (ResourceAllocation stored : storedMap.values()) {
-			boolean shared = sharedPrefix(stored.getResourceIdsList(), allocation.getResourceIdsList());
-			if (shared) {
-				if (stored.getPriority().compareTo(allocation.getPriority()) > 0) {
-					blocking.add(stored);
-				} else if (stored.getPriority().compareTo(allocation.getPriority()) == 0) {
-					if (refit || allocation.getInitiator().equals(SYSTEM)) {
+			boolean permitted = isPermitted(stored.getId(), allocation.getId());
+			if (!permitted) {
+				boolean shared = sharedPrefix(stored.getResourceIdsList(), allocation.getResourceIdsList());
+				if (shared) {
+					if (stored.getPriority().compareTo(allocation.getPriority()) > 0) {
 						blocking.add(stored);
-					} else {
+					} else if (stored.getPriority().compareTo(allocation.getPriority()) == 0) {
+						if (refit || allocation.getInitiator().equals(SYSTEM)) {
+							blocking.add(stored);
+						}
 					}
 				}
 			}
