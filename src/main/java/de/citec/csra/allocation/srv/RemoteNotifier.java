@@ -109,7 +109,7 @@ public class RemoteNotifier implements Runnable {
 				publish();
 				return;
 			}
-
+			
 			try {
 				while ((scheduled = isAlive()) && System.currentTimeMillis() < getSlot().getBegin().getTime()) {
 					Thread.sleep(this.interval);

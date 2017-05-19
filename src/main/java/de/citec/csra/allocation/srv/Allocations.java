@@ -226,6 +226,10 @@ public class Allocations {
 			LOG.log(Level.FINER, "Allocation request failed (slot not available): {0}", shortString(allocation));
 			reject(allocation, "slot not available");
 			return false;
+		} else if (match.getEnd().getTime() < System.currentTimeMillis()) {
+			LOG.log(Level.FINER, "Allocation request failed (slot expired): {0}", shortString(allocation));
+			release(allocation, "slot expired");
+			return false;
 		} else {
 			allocation = ResourceAllocation.newBuilder(allocation).setSlot(match).build();
 			LOG.log(Level.FINER, "Allocation request successful: {0}", shortString(allocation));
@@ -286,11 +290,27 @@ public class Allocations {
 		LOG.log(Level.FINE, "Rejecting: {0}", shortString(allocation));
 		if (isAlive(allocation.getId())) {
 			setState(allocation.getId(), REJECTED);
-			setReason(allocation.getId(), reason);
+			if (reason != null) {
+				setReason(allocation.getId(), reason);
+			}
 			this.notifications.update(allocation.getId(), true);
 			remove(allocation.getId());
 		} else {
 			LOG.log(Level.WARNING, "attempt to reject allocation ''{0}'' ignored, no such allocation active", allocation.getId());
+		}
+	}
+	
+	synchronized void release(ResourceAllocation allocation, String reason) {
+		LOG.log(Level.FINE, "Releasing: {0}", shortString(allocation));
+		if (isAlive(allocation.getId())) {
+			setState(allocation.getId(), RELEASED);
+			if (reason != null) {
+				setReason(allocation.getId(), reason);
+			}
+			this.notifications.update(allocation.getId(), true);
+			remove(allocation.getId());
+		} else {
+			LOG.log(Level.WARNING, "attempt to release allocation ''{0}'' ignored, no such allocation active", allocation.getId());
 		}
 	}
 
