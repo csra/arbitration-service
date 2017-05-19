@@ -74,6 +74,23 @@ public class AllocationTest {
 	}
 
 	@Test
+	public void testExpiration() throws InitializeException, RSBException, InterruptedException, TimeoutException {
+		AllocatableResource res = new AllocatableResource("Original", MAXIMUM, NORMAL, SYSTEM, -5000, 1000, "some-resource");
+		res.startup();
+		
+		res.await(REQUESTED, TIMEOUT);
+		res.await(RELEASED, TIMEOUT);
+
+		if (res.hasState(SCHEDULED)) {
+			fail("should not be allcoated");
+		}
+		
+		if (res.hasState(ALLOCATED)) {
+			fail("should not be allcoated");
+		}
+	}
+
+	@Test
 	public void testSingle() throws InitializeException, RSBException, InterruptedException, TimeoutException {
 		AllocatableResource res = new AllocatableResource("Original", MAXIMUM, NORMAL, SYSTEM, 100, 500, "some-resource");
 		res.startup();
@@ -156,10 +173,10 @@ public class AllocationTest {
 
 		AllocatableResource ar = new AllocatableResource(res);
 		AllocatableResource ar2 = new AllocatableResource(res);
-		
+
 		ar.startup();
 		ar.await(SCHEDULED);
-		
+
 		ar2.startup();
 
 		ar.await(ALLOCATED);
