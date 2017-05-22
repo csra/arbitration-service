@@ -75,6 +75,7 @@ public class NotificationService {
 			RemoteNotifier r = new RemoteNotifier(this.informer, id);
 			this.notifiers.put(id, r);
 			this.futures.put(id, this.exec.submit(r));
+			r.update();
 		}
 	}
 
