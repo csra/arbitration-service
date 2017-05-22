@@ -88,7 +88,9 @@ public class AllocationServer {
 	}
 
 	public void activate() throws RSBException {
-		this.listener.activate();
+		if (!this.listener.isActive()) {
+			this.listener.activate();
+		}
 	}
 
 	public void deactivate() throws RSBException, InterruptedException {
