@@ -18,8 +18,12 @@ package de.citec.csra.allocation.cli;
 
 import de.citec.csra.rst.util.IntervalUtils;
 import de.citec.csra.allocation.srv.AllocationServer;
+import de.citec.csra.allocation.vis.MovingChart;
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import org.jfree.data.time.MovingAverage;
 import org.junit.AfterClass;
 import static org.junit.Assert.fail;
 import org.junit.BeforeClass;
@@ -50,41 +54,27 @@ public class AllocationTest {
 	private static final long TIMEOUT = RemoteAllocationService.TIMEOUT + 1000;
 
 	@BeforeClass
-	public static void initServer() throws InterruptedException {
-		ParticipantConfig cfg = Factory.getInstance().getDefaultParticipantConfig();
-		for (TransportConfig t : cfg.getTransports().values()) {
-			t.setEnabled(t.getName().equalsIgnoreCase("INPROCESS"));
-		}
-		Factory.getInstance().setDefaultParticipantConfig(cfg);
-		new Thread(() -> {
-			try {
-				AllocationServer a = AllocationServer.getInstance();
-				a.activate();
-				a.listen();
-			} catch (InterruptedException | RSBException ex) {
-				fail("Exception in server thread: " + ex);
-			}
-		}).start();
-		Thread.sleep(200);
+	public static void initServer() throws InterruptedException, RSBException {
+		TestSetup.initServer();
 	}
-
+	
 	@AfterClass
 	public static void shutdownServer() throws InterruptedException, RSBException {
-		AllocationServer.getInstance().deactivate();
+		TestSetup.shutdownServer();
 	}
 
 	@Test
 	public void testExpiration() throws InitializeException, RSBException, InterruptedException, TimeoutException {
 		AllocatableResource res = new AllocatableResource("Original", MAXIMUM, NORMAL, SYSTEM, -5000, 1000, "some-resource");
 		res.startup();
-		
+
 		res.await(REQUESTED, TIMEOUT);
 		res.await(RELEASED, TIMEOUT);
 
 		if (res.hasState(SCHEDULED)) {
 			fail("should not be allcoated");
 		}
-		
+
 		if (res.hasState(ALLOCATED)) {
 			fail("should not be allcoated");
 		}

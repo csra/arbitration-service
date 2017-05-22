@@ -16,16 +16,11 @@
  */
 package de.citec.csra.allocation.cli;
 
-import de.citec.csra.allocation.srv.AllocationServer;
 import java.util.concurrent.TimeoutException;
-import static org.junit.Assert.fail;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import rsb.Factory;
 import rsb.InitializeException;
 import rsb.RSBException;
-import rsb.config.ParticipantConfig;
-import rsb.config.TransportConfig;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initiator.SYSTEM;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy.MAXIMUM;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority.*;
@@ -42,13 +37,7 @@ public class TimeoutTest {
 
 	@BeforeClass
 	public static void initServer() throws InterruptedException, RSBException {
-		ParticipantConfig cfg = Factory.getInstance().getDefaultParticipantConfig();
-		for (TransportConfig t : cfg.getTransports().values()) {
-			t.setEnabled(t.getName().equalsIgnoreCase("INPROCESS"));
-		}
-		Factory.getInstance().setDefaultParticipantConfig(cfg);
-		AllocationServer.getInstance().deactivate();
-		Thread.sleep(200);
+		TestSetup.shutdownServer();
 	}
 
 	@Test

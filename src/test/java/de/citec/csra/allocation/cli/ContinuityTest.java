@@ -19,17 +19,13 @@ package de.citec.csra.allocation.cli;
 import static de.citec.csra.allocation.cli.ExecutableResource.Completion.EXPIRE;
 import static de.citec.csra.allocation.cli.ExecutableResource.Completion.MONITOR;
 import static de.citec.csra.allocation.cli.ExecutableResource.Completion.RETAIN;
-import de.citec.csra.allocation.srv.AllocationServer;
 import java.util.concurrent.ExecutionException;
 import org.junit.AfterClass;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import rsb.Factory;
 import rsb.RSBException;
-import rsb.config.ParticipantConfig;
-import rsb.config.TransportConfig;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initiator.SYSTEM;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy.MAXIMUM;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority.NORMAL;
@@ -43,31 +39,17 @@ public class ContinuityTest {
 	private static final long TIMEOUT = RemoteAllocationService.TIMEOUT + 1000;
 
 	@BeforeClass
-	public static void initServer() throws InterruptedException {
-		ParticipantConfig cfg = Factory.getInstance().getDefaultParticipantConfig();
-		for (TransportConfig t : cfg.getTransports().values()) {
-			t.setEnabled(t.getName().equalsIgnoreCase("INPROCESS"));
-		}
-		Factory.getInstance().setDefaultParticipantConfig(cfg);
-		new Thread(() -> {
-			try {
-				AllocationServer a = AllocationServer.getInstance();
-				a.activate();
-				a.listen();
-			} catch (InterruptedException | RSBException ex) {
-				fail("Exception in server thread: " + ex);
-			}
-		}).start();
-		Thread.sleep(200);
+	public static void initServer() throws InterruptedException, RSBException {
+		TestSetup.initServer();
 	}
 
 	@AfterClass
 	public static void shutdownServer() throws InterruptedException, RSBException {
-		AllocationServer.getInstance().deactivate();
+		TestSetup.shutdownServer();
 	}
-	
+
 	@Test
-	public void testImmediateRelease() throws RSBException, InterruptedException, ExecutionException{
+	public void testImmediateRelease() throws RSBException, InterruptedException, ExecutionException {
 		long duration = 500;
 		ExecutableResource<String> t = new ExecutableResource<String>("Blocker", MAXIMUM, NORMAL, SYSTEM, 0, duration, EXPIRE, "some-resource") {
 			@Override
@@ -80,12 +62,12 @@ public class ContinuityTest {
 		t.getFuture().get();
 		long after = System.currentTimeMillis();
 		long runtime = after - before;
-		
+
 		assertTrue("block time smaller than estimated duration", runtime < duration);
 	}
-	
+
 	@Test
-	public void testContinousAllocation() throws RSBException, InterruptedException, ExecutionException{
+	public void testContinousAllocation() throws RSBException, InterruptedException, ExecutionException {
 		long duration = 500;
 		ExecutableResource<String> t = new ExecutableResource<String>("Blocker", MAXIMUM, NORMAL, SYSTEM, 0, duration, MONITOR, "some-resource") {
 			@Override
@@ -95,15 +77,20 @@ public class ContinuityTest {
 		};
 		long before = System.currentTimeMillis();
 		t.startup();
-		t.getFuture().get();
+		try {
+			t.getFuture().get();
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			fail(ex.getMessage());
+		}
 		long after = System.currentTimeMillis();
-		long runtime = after - before;
-		
+		long runtime = after - before + 100;
+
 		assertTrue("at least block for allocated time", runtime >= duration);
 	}
-	
+
 	@Test
-	public void testLazyContinousAllocation() throws RSBException, InterruptedException, ExecutionException{
+	public void testLazyContinousAllocation() throws RSBException, InterruptedException, ExecutionException {
 		long duration = 500;
 		ExecutableResource<String> t = new ExecutableResource<String>("Blocker", MAXIMUM, NORMAL, SYSTEM, 0, duration, RETAIN, "some-resource") {
 			@Override
@@ -115,10 +102,10 @@ public class ContinuityTest {
 		t.startup();
 		t.getFuture().get();
 		long after = System.currentTimeMillis();
-		
+
 		long remaining = t.getRemote().getRemainingTime();
 		long runtime = after - before;
-		
+
 		assertTrue("there is time remaining", remaining > 0);
 		assertTrue("remaining time smaller than allocated", remaining < duration);
 		assertTrue("remaining time plus runtime larger than allocated time", runtime + remaining >= duration);

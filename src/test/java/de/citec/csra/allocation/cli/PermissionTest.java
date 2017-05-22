@@ -17,7 +17,11 @@
 package de.citec.csra.allocation.cli;
 
 import de.citec.csra.allocation.srv.AllocationServer;
+import de.citec.csra.allocation.vis.MovingChart;
 import java.util.concurrent.TimeoutException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import org.junit.AfterClass;
 import static org.junit.Assert.fail;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -42,22 +46,13 @@ public class PermissionTest {
 	private static final long TIMEOUT = RemoteAllocationService.TIMEOUT + 1000;
 
 	@BeforeClass
-	public static void initServer() throws InterruptedException {
-		ParticipantConfig cfg = Factory.getInstance().getDefaultParticipantConfig();
-		for (TransportConfig t : cfg.getTransports().values()) {
-			t.setEnabled(t.getName().equalsIgnoreCase("INPROCESS"));
-		}
-		Factory.getInstance().setDefaultParticipantConfig(cfg);
-		new Thread(() -> {
-			try {
-				AllocationServer a = AllocationServer.getInstance();
-				a.activate();
-				a.listen();
-			} catch (InterruptedException | RSBException ex) {
-				fail("Exception in server thread: " + ex);
-			}
-		}).start();
-		Thread.sleep(200);
+	public static void initServer() throws InterruptedException, RSBException {
+		TestSetup.initServer();
+	}
+	
+	@AfterClass
+	public static void shutdownServer() throws InterruptedException, RSBException {
+		TestSetup.shutdownServer();
 	}
 
 	@Test
