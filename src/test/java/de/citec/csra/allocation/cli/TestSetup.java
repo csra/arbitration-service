@@ -33,13 +33,12 @@ import rsb.config.TransportConfig;
  * @author Patrick Holthaus
  */
 public class TestSetup {
-	
+
 	private static final boolean useGUI = false;
 	private static boolean hasGUI;
-	
+
 	@BeforeClass
 	public static void initServer() throws InterruptedException {
-
 
 		ParticipantConfig cfg = Factory.getInstance().getDefaultParticipantConfig();
 		for (TransportConfig t : cfg.getTransports().values()) {
@@ -56,8 +55,7 @@ public class TestSetup {
 			}
 		}).start();
 		Thread.sleep(100);
-		
-		
+
 		if (useGUI && !hasGUI) {
 			try {
 				MovingChart.main(new String[]{"100", "20000"});
@@ -65,9 +63,9 @@ public class TestSetup {
 			} catch (RSBException ex) {
 				Logger.getLogger(TestSetup.class.getName()).log(Level.SEVERE, null, ex);
 			}
+			Thread.sleep(100);
 		}
-		
-		Thread.sleep(100);
+
 	}
 
 	@AfterClass
