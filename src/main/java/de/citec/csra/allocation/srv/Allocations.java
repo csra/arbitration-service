@@ -62,11 +62,6 @@ public class Allocations {
 		return instance;
 	}
 
-//	private synchronized Map<String, ResourceAllocation> getMap() {
-//		synchronized (this.allocations) {
-//			return new HashMap<>(this.allocations);
-//		}
-//	}
 	synchronized boolean isAlive(String id) {
 		if (this.allocations.containsKey(id)) {
 			ResourceAllocation a = this.allocations.get(id);
@@ -276,10 +271,10 @@ public class Allocations {
 
 	synchronized void schedule(ResourceAllocation allocation) {
 		LOG.log(Level.FINE, "Scheduling: {0}", shortString(allocation));
-		updateAffected(allocation, "slot superseded");
 		if (isAlive(allocation.getId())) {
 			this.allocations.put(allocation.getId(), allocation);
 			setState(allocation.getId(), SCHEDULED);
+			updateAffected(allocation, "slot superseded");
 			this.notifications.update(allocation.getId(), true);
 		} else {
 			LOG.log(Level.WARNING, "attempt to schedule allocation ''{0}'' ignored, no such allocation active", allocation.getId());
@@ -299,7 +294,7 @@ public class Allocations {
 			LOG.log(Level.WARNING, "attempt to reject allocation ''{0}'' ignored, no such allocation active", allocation.getId());
 		}
 	}
-	
+
 	synchronized void release(ResourceAllocation allocation, String reason) {
 		LOG.log(Level.FINE, "Releasing: {0}", shortString(allocation));
 		if (isAlive(allocation.getId())) {
@@ -316,13 +311,13 @@ public class Allocations {
 
 	synchronized void update(ResourceAllocation allocation, String reason, boolean updateAffected) {
 		LOG.log(Level.FINE, "Updating: {0}", shortString(allocation));
-		if (updateAffected) {
-			updateAffected(allocation, "slot superseded");
-		}
 		if (isAlive(allocation.getId())) {
 			this.allocations.put(allocation.getId(), allocation);
 			if (reason != null) {
 				setReason(allocation.getId(), reason);
+			}
+			if (updateAffected) {
+				updateAffected(allocation, "slot superseded");
 			}
 			this.notifications.update(allocation.getId(), true);
 		} else {
@@ -463,6 +458,7 @@ public class Allocations {
 		LOG.log(Level.FINE, "Updating allocations affected by: {0}", shortString(allocation));
 		List<ResourceAllocation> affected = getAffected(allocation);
 		for (ResourceAllocation running : affected) {
+			LOG.log(Level.FINER, "Updating: {0}", shortString(running));
 			IntervalType.Interval mod = findSlot(running, true);
 			ResourceAllocation.Builder builder = ResourceAllocation.newBuilder(running);
 			if (mod == null) {
