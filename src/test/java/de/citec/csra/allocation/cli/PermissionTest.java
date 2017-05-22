@@ -16,20 +16,12 @@
  */
 package de.citec.csra.allocation.cli;
 
-import de.citec.csra.allocation.srv.AllocationServer;
-import de.citec.csra.allocation.vis.MovingChart;
 import java.util.concurrent.TimeoutException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.junit.AfterClass;
-import static org.junit.Assert.fail;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import rsb.Factory;
 import rsb.InitializeException;
 import rsb.RSBException;
-import rsb.config.ParticipantConfig;
-import rsb.config.TransportConfig;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initiator.SYSTEM;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy.MAXIMUM;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority.*;
@@ -58,8 +50,8 @@ public class PermissionTest {
 	@Test
 	public void testPermission() throws InitializeException, RSBException, InterruptedException, TimeoutException {
 
-		AllocatableResource some = new AllocatableResource("parent", MAXIMUM, NORMAL, SYSTEM, 1000, 10000, "some-resource");
-		AllocatableResource other = new AllocatableResource("child", MAXIMUM, NORMAL, SYSTEM, 3000, 5000, "some-resource");
+		AllocatableResource some = new AllocatableResource("parent", MAXIMUM, NORMAL, SYSTEM, 100, 1000, "some-resource");
+		AllocatableResource other = new AllocatableResource("child", MAXIMUM, NORMAL, SYSTEM, 200, 500, "some-resource");
 		
 		some.getRemote().generateToken();
 		other.getRemote().setToken(some.getRemote().getToken());
@@ -70,7 +62,7 @@ public class PermissionTest {
 		some.await(ALLOCATED, TIMEOUT);
 		other.await(ALLOCATED, TIMEOUT);
 		
-		some.await(RELEASED, 11000);
-		other.await(RELEASED, 11000);
+		some.await(RELEASED, 1100);
+		other.await(RELEASED, 800);
 	}
 }
