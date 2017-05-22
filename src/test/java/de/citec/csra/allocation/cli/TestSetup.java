@@ -34,6 +34,7 @@ import rsb.config.TransportConfig;
  */
 public class TestSetup {
 	
+	private static final boolean useGUI = false;
 	private static boolean hasGUI;
 	
 	@BeforeClass
@@ -54,10 +55,10 @@ public class TestSetup {
 				fail("Exception in server thread: " + ex);
 			}
 		}).start();
-		Thread.sleep(200);
+		Thread.sleep(100);
 		
 		
-		if (!hasGUI) {
+		if (useGUI && !hasGUI) {
 			try {
 				MovingChart.main(new String[]{"100", "20000"});
 				hasGUI = true;
@@ -66,12 +67,12 @@ public class TestSetup {
 			}
 		}
 		
-		Thread.sleep(200);
+		Thread.sleep(100);
 	}
 
 	@AfterClass
 	public static void shutdownServer() throws InterruptedException, RSBException {
 		AllocationServer.getInstance().deactivate();
-		Thread.sleep(200);
+		Thread.sleep(100);
 	}
 }
