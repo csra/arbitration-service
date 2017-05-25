@@ -3,15 +3,15 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>de.citec.csra</groupId>
 	<artifactId>arbitration-service</artifactId>
-	<version>0.12-SNAPSHOT</version>
+	<version>0.12.0</version>
 	<packaging>jar</packaging>
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<maven.compiler.source>1.8</maven.compiler.source>
 		<maven.compiler.target>1.8</maven.compiler.target>
-		<rsb.version>[0.15,)</rsb.version>
-		<rsu.version>[0.2-SNAPSHOT,)</rsu.version>
-		<rta.version>[1.1-SNAPSHOT,)</rta.version>
+		<rsb.version>[0.15.0,0.16-SNAPSHOT)</rsb.version>
+		<rsu.version>[0.2.0,0.3-SNAPSHOT)</rsu.version>
+		<rta.version>[1.1.0,1.2-SNAPSHOT)</rta.version>
 		<netbeans.hint.license>gpl30</netbeans.hint.license>
 	</properties>
 	<repositories>
