@@ -18,6 +18,7 @@ package de.citec.csra.allocation.cli;
 
 import de.citec.csra.allocation.srv.AllocationServer;
 import de.citec.csra.allocation.vis.MovingChart;
+import de.citec.csra.rst.util.StringRepresentation;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.junit.AfterClass;
@@ -65,6 +66,8 @@ public class TestSetup {
 			}
 			Thread.sleep(100);
 		}
+		
+		StringRepresentation.setIntervalOrigin(System.currentTimeMillis());
 
 	}
 
