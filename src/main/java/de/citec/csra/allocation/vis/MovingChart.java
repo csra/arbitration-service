@@ -18,6 +18,8 @@ package de.citec.csra.allocation.vis;
 
 import de.citec.csra.allocation.srv.AllocationServer;
 import java.awt.BasicStroke;
+import static java.awt.BasicStroke.CAP_BUTT;
+import static java.awt.BasicStroke.JOIN_BEVEL;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.event.ActionEvent;
@@ -308,7 +310,7 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 
 	}
 
-	public void updateDataPoints(String id, String label, String resource, long start, long end, State state, Priority prio) {
+	public void updateDataPoints(String id, String label, String resource, long start, long end, State state, Priority prio, boolean token) {
 		synchronized (this.dataset) {
 			TimeSeries series = this.dataset.getSeries(id);
 			if (series == null) {
@@ -376,7 +378,11 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 			}
 			if (number > 0) {
 				if (stroke > 0) {
-					r.setSeriesStroke(number, new BasicStroke(stroke));
+					if(token){
+						r.setSeriesStroke(number, new BasicStroke(stroke, CAP_BUTT, JOIN_BEVEL, 1, new float[]{1.5f, .5f}, .5f));
+					} else {
+						r.setSeriesStroke(number, new BasicStroke(stroke, CAP_BUTT, JOIN_BEVEL, 1));
+					}
 				}
 				if (c != null) {
 					r.setSeriesPaint(number, c);
@@ -422,7 +428,8 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 			long end = update.getSlot().getEnd().getTime();
 			for (String resource : update.getResourceIdsList()) {
 				String label = update.getDescription().replaceAll(":.*", "") + " (" + update.getId().substring(0, 4) + ")";
-				updateDataPoints(update.getId() + ":" + resource, label, resource, start, end, update.getState(), update.getPriority());
+				updateDataPoints(update.getId() + ":" + resource, label, resource, start, end, update.getState(), update.getPriority(), update.getId().split("#").length > 1);
+				
 			}
 		}
 	}
