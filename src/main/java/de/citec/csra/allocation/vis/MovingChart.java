@@ -206,16 +206,10 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 						}
 					}
 				}
-				String trimmed = id.replaceFirst("^/home/", "").replaceFirst("/$", "");
-				int first = trimmed.indexOf("/");
-				int last = trimmed.lastIndexOf("/");
-				if (first > 0 && first < last && last < trimmed.length()) {
-					trimmed = trimmed.replace(trimmed.substring(first, last + 1), "...");
-				}
-				if(trimmed.length() > 0){
-					ap.append(trimmed);
-				} else {
-					ap.append(id);
+				id = id.replaceFirst("/$", "");
+				ap.append(id);
+				if (id.length() > 32) {
+					ap.replace(15, ap.length() - 15, "..");
 				}
 				return ap;
 			}
