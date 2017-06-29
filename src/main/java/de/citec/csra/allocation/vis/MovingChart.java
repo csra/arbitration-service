@@ -424,8 +424,8 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 
 		@Override
 		public void run() {
-			long start = update.getSlot().getBegin().getTime();
-			long end = update.getSlot().getEnd().getTime();
+			long start = update.getSlot().getBegin().getTime() / 1000;
+			long end = update.getSlot().getEnd().getTime() / 1000;
 			for (String resource : update.getResourceIdsList()) {
 				String label = update.getDescription().replaceAll(":.*", "") + " (" + update.getId().substring(0, 4) + ")";
 				updateDataPoints(update.getId() + ":" + resource, label, resource, start, end, update.getState(), update.getPriority(), update.getId().split("#").length > 1);
