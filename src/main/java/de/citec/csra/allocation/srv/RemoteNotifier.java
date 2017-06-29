@@ -16,6 +16,7 @@
  */
 package de.citec.csra.allocation.srv;
 
+import static de.citec.csra.rst.util.IntervalUtils.currentTimeInMicros;
 import static de.citec.csra.rst.util.StringRepresentation.shortString;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -97,10 +98,10 @@ public class RemoteNotifier implements Runnable {
 			}
 
 			long delay;
-			while ((delay = getSlot().getBegin().getTime() - System.currentTimeMillis()) > 0) {
+			while ((delay = getSlot().getBegin().getTime() - currentTimeInMicros()) > 0) {
 				synchronized (monitor) {
 					try {
-						monitor.wait(delay);
+						monitor.wait(delay / 1000, (int) ((delay % 1000) / 1000));
 					} catch (InterruptedException ex) {
 						interrupted();
 						return;
@@ -119,10 +120,10 @@ public class RemoteNotifier implements Runnable {
 			publish();
 
 			long remaining;
-			while ((remaining = getSlot().getEnd().getTime() - System.currentTimeMillis()) > 0) {
+			while ((remaining = getSlot().getEnd().getTime() - currentTimeInMicros()) > 0) {
 				synchronized (monitor) {
 					try {
-						monitor.wait(remaining);
+						monitor.wait(remaining / 1000, (int) ((remaining % 1000) / 1000));
 					} catch (InterruptedException ex) {
 						interrupted();
 					}

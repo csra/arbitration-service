@@ -17,6 +17,7 @@
 package de.citec.csra.allocation.srv;
 
 import de.citec.csra.rst.util.IntervalUtils;
+import static de.citec.csra.rst.util.IntervalUtils.currentTimeInMicros;
 import static de.citec.csra.rst.util.StringRepresentation.shortString;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -33,7 +34,6 @@ import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocatio
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initiator.SYSTEM;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.*;
-import rst.timing.IntervalType;
 import rst.timing.IntervalType.Interval;
 
 /**
@@ -216,12 +216,12 @@ public class Allocations {
 		this.allocations.put(allocation.getId(), allocation);
 		this.notifications.init(allocation.getId());
 
-		IntervalType.Interval match = findSlot(allocation, false);
+		Interval match = findSlot(allocation, false);
 		if (match == null) {
 			LOG.log(Level.FINER, "Allocation request failed (slot not available): {0}", shortString(allocation));
 			reject(allocation, "slot not available");
 			return false;
-		} else if (match.getEnd().getTime() < System.currentTimeMillis()) {
+		} else if (match.getEnd().getTime() < currentTimeInMicros()) {
 			LOG.log(Level.FINER, "Allocation request failed (slot expired): {0}", shortString(allocation));
 			release(allocation, "slot expired");
 			return false;
@@ -252,7 +252,7 @@ public class Allocations {
 	 */
 	synchronized boolean modify(ResourceAllocation allocation) {
 		if (isAlive(allocation.getId())) {
-			IntervalType.Interval match = findSlot(allocation, false);
+			Interval match = findSlot(allocation, false);
 			if (match == null) {
 				LOG.log(Level.FINER, "Allocation modification failed (slot not available): {0}", shortString(allocation));
 				update(get(allocation.getId()), "slot not available", true);
@@ -388,7 +388,7 @@ public class Allocations {
 			}
 		}
 
-		blocking.removeIf(e -> e.getSlot().getEnd().getTime() < System.currentTimeMillis());
+		blocking.removeIf(e -> e.getSlot().getEnd().getTime() < currentTimeInMicros());
 		blocking.sort((l, r) -> {
 			return (int) (l.getSlot().getEnd().getTime() - r.getSlot().getEnd().getTime());
 		});
@@ -413,19 +413,19 @@ public class Allocations {
 			}
 		}
 
-		affected.removeIf(e -> e.getSlot().getEnd().getTime() < System.currentTimeMillis());
+		affected.removeIf(e -> e.getSlot().getEnd().getTime() < currentTimeInMicros());
 		affected.sort((l, r) -> {
 			return (int) (l.getSlot().getEnd().getTime() - r.getSlot().getEnd().getTime());
 		});
 		return affected;
 	}
 
-	synchronized IntervalType.Interval findSlot(ResourceAllocation allocation, boolean refit) {
+	synchronized Interval findSlot(ResourceAllocation allocation, boolean refit) {
 		LOG.log(Level.FINE, "Fitting: {0}", shortString(allocation));
 		List<ResourceAllocation> blockers = getBlockers(allocation, refit);
 		if (!blockers.isEmpty()) {
-			List<IntervalType.Interval> times = blockers.stream().map(b -> b.getSlot()).collect(Collectors.toList());
-			IntervalType.Interval match = null;
+			List<Interval> times = blockers.stream().map(b -> b.getSlot()).collect(Collectors.toList());
+			Interval match = null;
 			if (allocation.getState().equals(ALLOCATED)) {
 				match = IntervalUtils.findRemaining(allocation.getSlot(), times);
 			} else {
@@ -459,7 +459,7 @@ public class Allocations {
 		List<ResourceAllocation> affected = getAffected(allocation);
 		for (ResourceAllocation running : affected) {
 			LOG.log(Level.FINER, "Updating: {0}", shortString(running));
-			IntervalType.Interval mod = findSlot(running, true);
+			Interval mod = findSlot(running, true);
 			ResourceAllocation.Builder builder = ResourceAllocation.newBuilder(running);
 			if (mod == null) {
 				switch (running.getState()) {
