@@ -97,11 +97,11 @@ public class RemoteNotifier implements Runnable {
 					return;
 			}
 
-			long delay;
-			while ((delay = getSlot().getBegin().getTime() - currentTimeInMicros()) > 0) {
-				synchronized (monitor) {
+			synchronized (monitor) {
+				long delay;
+				while ((delay = getSlot().getBegin().getTime() - currentTimeInMicros()) > 0) {
 					try {
-						monitor.wait(delay / 1000, (int) ((delay % 1000) / 1000));
+						monitor.wait(delay / 1000, (int) ((delay % 1000) * 1000));
 					} catch (InterruptedException ex) {
 						interrupted();
 						return;
@@ -119,11 +119,11 @@ public class RemoteNotifier implements Runnable {
 			Allocations.getInstance().setState(id, ALLOCATED);
 			publish();
 
-			long remaining;
-			while ((remaining = getSlot().getEnd().getTime() - currentTimeInMicros()) > 0) {
-				synchronized (monitor) {
+			synchronized (monitor) {
+				long remaining;
+				while ((remaining = getSlot().getEnd().getTime() - currentTimeInMicros()) > 0) {
 					try {
-						monitor.wait(remaining / 1000, (int) ((remaining % 1000) / 1000));
+						monitor.wait(remaining / 1000, (int) ((remaining % 1000) * 1000));
 					} catch (InterruptedException ex) {
 						interrupted();
 					}
