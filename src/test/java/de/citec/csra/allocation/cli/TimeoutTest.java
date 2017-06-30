@@ -34,7 +34,7 @@ import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocatio
  */
 public class TimeoutTest {
 
-	private static final long TIMEOUT = 5000;
+	private static final long TIMEOUT = 2500;
 
 	@BeforeClass
 	public static void initServer() throws InterruptedException, RSBException {
