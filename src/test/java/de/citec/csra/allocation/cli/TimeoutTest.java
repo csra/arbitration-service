@@ -16,6 +16,7 @@
  */
 package de.citec.csra.allocation.cli;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import java.util.concurrent.TimeoutException;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -33,7 +34,7 @@ import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocatio
  */
 public class TimeoutTest {
 
-	private static final long TIMEOUT = RemoteAllocationService.TIMEOUT + 1000;
+	private static final long TIMEOUT = 5000000;
 
 	@BeforeClass
 	public static void initServer() throws InterruptedException, RSBException {
@@ -42,20 +43,8 @@ public class TimeoutTest {
 
 	@Test
 	public void testSchedule() throws InitializeException, RSBException, InterruptedException, TimeoutException {
-		AllocatableResource res = new AllocatableResource("Original", MAXIMUM, NORMAL, SYSTEM, 0, 2 * TIMEOUT, "some-resource");
+		AllocatableResource res = new AllocatableResource("Original", MAXIMUM, NORMAL, SYSTEM, 0, 200, MILLISECONDS, "unreachable-resource");
 		res.startup();
 		res.await(CANCELLED, TIMEOUT);
-	}
-
-	@Test
-	public void testNonConflict() throws InitializeException, RSBException, InterruptedException, TimeoutException {
-		AllocatableResource some = new AllocatableResource("Some", MAXIMUM, NORMAL, SYSTEM, 0, 2 * TIMEOUT, "some-resource");
-		AllocatableResource other = new AllocatableResource("Other", MAXIMUM, NORMAL, SYSTEM, 0, 2 * TIMEOUT, "other-resource");
-
-		some.startup();
-		other.startup();
-
-		some.await(CANCELLED, TIMEOUT);
-		other.await(CANCELLED, TIMEOUT);
 	}
 }
