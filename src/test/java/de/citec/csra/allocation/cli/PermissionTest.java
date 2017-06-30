@@ -35,7 +35,7 @@ import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocatio
  */
 public class PermissionTest {
 
-	private static final long TIMEOUT = RemoteAllocationService.TIMEOUT + 1000;
+	private static final long TIMEOUT_US = 5000000;
 
 	@BeforeClass
 	public static void initServer() throws InterruptedException, RSBException {
@@ -59,8 +59,8 @@ public class PermissionTest {
 		some.startup();
 		other.startup();
 
-		some.await(ALLOCATED, TIMEOUT);
-		other.await(ALLOCATED, TIMEOUT);
+		some.await(ALLOCATED, TIMEOUT_US);
+		other.await(ALLOCATED, TIMEOUT_US);
 		
 		some.await(RELEASED, 1100);
 		other.await(RELEASED, 800);

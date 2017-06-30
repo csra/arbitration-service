@@ -19,10 +19,11 @@ package de.citec.csra.allocation.cli;
 import static de.citec.csra.allocation.cli.ExecutableResource.Completion.EXPIRE;
 import static de.citec.csra.allocation.cli.ExecutableResource.Completion.MONITOR;
 import static de.citec.csra.allocation.cli.ExecutableResource.Completion.RETAIN;
+import static de.citec.csra.rst.util.IntervalUtils.currentTimeInMicros;
 import java.util.concurrent.ExecutionException;
+import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import org.junit.AfterClass;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import rsb.RSBException;
@@ -36,8 +37,6 @@ import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocatio
  */
 public class ContinuityTest {
 
-	private static final long TIMEOUT = RemoteAllocationService.TIMEOUT + 1000;
-
 	@BeforeClass
 	public static void initServer() throws InterruptedException, RSBException {
 		TestSetup.initServer();
@@ -50,17 +49,17 @@ public class ContinuityTest {
 
 	@Test
 	public void testImmediateRelease() throws RSBException, InterruptedException, ExecutionException {
-		long duration = 500;
-		ExecutableResource<String> t = new ExecutableResource<String>("Blocker", MAXIMUM, NORMAL, SYSTEM, 0, duration, EXPIRE, "some-resource") {
+		long duration = 200000;
+		ExecutableResource<String> t = new ExecutableResource<String>("Blocker", MAXIMUM, NORMAL, SYSTEM, 0, duration, MICROSECONDS, EXPIRE, "immediate-resource") {
 			@Override
 			public String execute() throws ExecutionException, InterruptedException {
 				return "computed result";
 			}
 		};
-		long before = System.currentTimeMillis();
+		long before = currentTimeInMicros();
 		t.startup();
 		t.getFuture().get();
-		long after = System.currentTimeMillis();
+		long after = currentTimeInMicros();
 		long runtime = after - before;
 
 		assertTrue("block time smaller than estimated duration", runtime < duration);
@@ -68,40 +67,35 @@ public class ContinuityTest {
 
 	@Test
 	public void testContinousAllocation() throws RSBException, InterruptedException, ExecutionException {
-		long duration = 500;
-		ExecutableResource<String> t = new ExecutableResource<String>("Blocker", MAXIMUM, NORMAL, SYSTEM, 0, duration, MONITOR, "some-resource") {
+		long duration = 200000;
+		ExecutableResource<String> t = new ExecutableResource<String>("Blocker", MAXIMUM, NORMAL, SYSTEM, 0, duration, MICROSECONDS, MONITOR, "monitored-resource") {
 			@Override
 			public String execute() throws ExecutionException, InterruptedException {
 				return "computed result";
 			}
 		};
-		long before = System.currentTimeMillis();
+		long before = currentTimeInMicros();
 		t.startup();
-		try {
-			t.getFuture().get();
-		} catch (Exception ex) {
-			ex.printStackTrace();
-			fail(ex.getMessage());
-		}
-		long after = System.currentTimeMillis();
-		long runtime = after - before + 100;
+		t.getFuture().get();
+		long after = currentTimeInMicros();
+		long runtime = after - before;
 
 		assertTrue("at least block for allocated time", runtime >= duration);
 	}
 
 	@Test
 	public void testLazyContinousAllocation() throws RSBException, InterruptedException, ExecutionException {
-		long duration = 500;
-		ExecutableResource<String> t = new ExecutableResource<String>("Blocker", MAXIMUM, NORMAL, SYSTEM, 0, duration, RETAIN, "some-resource") {
+		long duration = 500000;
+		ExecutableResource<String> t = new ExecutableResource<String>("Blocker", MAXIMUM, NORMAL, SYSTEM, 0, duration, MICROSECONDS, RETAIN, "retained-resource") {
 			@Override
 			public String execute() throws ExecutionException, InterruptedException {
 				return "computed result";
 			}
 		};
-		long before = System.currentTimeMillis();
+		long before = currentTimeInMicros();
 		t.startup();
 		t.getFuture().get();
-		long after = System.currentTimeMillis();
+		long after = currentTimeInMicros();
 
 		long remaining = t.getRemote().getRemainingTime();
 		long runtime = after - before;

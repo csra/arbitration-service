@@ -16,24 +16,17 @@
  */
 package de.citec.csra.allocation.cli;
 
-import de.citec.csra.rst.util.IntervalUtils;
-import de.citec.csra.allocation.srv.AllocationServer;
-import de.citec.csra.allocation.vis.MovingChart;
+import static de.citec.csra.rst.util.IntervalUtils.buildRelativeRst;
 import java.util.UUID;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import java.util.concurrent.TimeoutException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import org.jfree.data.time.MovingAverage;
 import org.junit.AfterClass;
 import static org.junit.Assert.fail;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import rsb.Factory;
 import rsb.InitializeException;
 import rsb.RSBException;
-import rsb.config.ParticipantConfig;
-import rsb.config.TransportConfig;
-import rst.communicationpatterns.ResourceAllocationType;
+import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initiator.SYSTEM;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy.MAXIMUM;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority.*;
@@ -51,13 +44,13 @@ import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocatio
  */
 public class AllocationTest {
 
-	private static final long TIMEOUT = RemoteAllocationService.TIMEOUT + 1000;
+	private static final long TIMEOUT = 5000;
 
 	@BeforeClass
 	public static void initServer() throws InterruptedException, RSBException {
 		TestSetup.initServer();
 	}
-	
+
 	@AfterClass
 	public static void shutdownServer() throws InterruptedException, RSBException {
 		TestSetup.shutdownServer();
@@ -65,11 +58,11 @@ public class AllocationTest {
 
 	@Test
 	public void testExpiration() throws InitializeException, RSBException, InterruptedException, TimeoutException {
-		AllocatableResource res = new AllocatableResource("Original", MAXIMUM, NORMAL, SYSTEM, -5000, 1000, "some-resource");
+		AllocatableResource res = new AllocatableResource("Original", MAXIMUM, NORMAL, SYSTEM, -500, 100, MILLISECONDS, "some-resource");
 		res.startup();
 
-		res.await(REQUESTED, TIMEOUT);
-		res.await(RELEASED, TIMEOUT);
+		res.await(TIMEOUT, MILLISECONDS, REQUESTED);
+		res.await(TIMEOUT, MILLISECONDS, RELEASED);
 
 		if (res.hasState(SCHEDULED)) {
 			fail("should not be allcoated");
@@ -82,12 +75,12 @@ public class AllocationTest {
 
 	@Test
 	public void testSingle() throws InitializeException, RSBException, InterruptedException, TimeoutException {
-		AllocatableResource res = new AllocatableResource("Original", MAXIMUM, NORMAL, SYSTEM, 100, 500, "some-resource");
+		AllocatableResource res = new AllocatableResource("Original", MAXIMUM, NORMAL, SYSTEM, 100, 500, MILLISECONDS, "some-resource");
 		res.startup();
-		res.await(REQUESTED, TIMEOUT);
-		res.await(SCHEDULED, TIMEOUT);
-		res.await(ALLOCATED, TIMEOUT);
-		res.await(RELEASED, TIMEOUT);
+		res.await(TIMEOUT, MILLISECONDS, REQUESTED);
+		res.await(TIMEOUT, MILLISECONDS, SCHEDULED);
+		res.await(TIMEOUT, MILLISECONDS, ALLOCATED);
+		res.await(TIMEOUT, MILLISECONDS, RELEASED);
 	}
 
 	@Test
@@ -98,81 +91,82 @@ public class AllocationTest {
 		some.startup();
 		other.startup();
 
-		some.await(REQUESTED, TIMEOUT);
-		other.await(REQUESTED, TIMEOUT);
+		some.await(TIMEOUT, MILLISECONDS, REQUESTED);
+		other.await(TIMEOUT, MILLISECONDS, REQUESTED);
 
-		some.await(SCHEDULED, TIMEOUT);
-		other.await(SCHEDULED, TIMEOUT);
+		some.await(TIMEOUT, MILLISECONDS, SCHEDULED);
+		other.await(TIMEOUT, MILLISECONDS, SCHEDULED);
 
-		some.await(ALLOCATED, TIMEOUT);
-		other.await(ALLOCATED, TIMEOUT);
+		some.await(TIMEOUT, MILLISECONDS, ALLOCATED);
+		other.await(TIMEOUT, MILLISECONDS, ALLOCATED);
 
-		some.await(RELEASED, TIMEOUT);
-		other.await(RELEASED, TIMEOUT);
+		some.await(TIMEOUT, MILLISECONDS, RELEASED);
+		other.await(TIMEOUT, MILLISECONDS, RELEASED);
 	}
 
 	@Test
 	public void testShortening() throws InitializeException, RSBException, InterruptedException, TimeoutException {
-		AllocatableResource normal = new AllocatableResource("Higher", MAXIMUM, NORMAL, SYSTEM, 0, 1500, "some-resource");
-		AllocatableResource higher = new AllocatableResource("Higher", MAXIMUM, HIGH, SYSTEM, 500, 500, "some-resource");
+		AllocatableResource normal = new AllocatableResource("Higher", MAXIMUM, NORMAL, SYSTEM, 0, 1500, MILLISECONDS, "some-resource");
+		AllocatableResource higher = new AllocatableResource("Higher", MAXIMUM, HIGH, SYSTEM, 500, 500, MILLISECONDS, "some-resource");
 		normal.startup();
 		higher.startup();
 
-		normal.await(REQUESTED, TIMEOUT);
-		higher.await(REQUESTED, TIMEOUT);
+		normal.await(TIMEOUT, MILLISECONDS, REQUESTED);
+		higher.await(TIMEOUT, MILLISECONDS, REQUESTED);
 
-		normal.await(SCHEDULED, TIMEOUT);
-		higher.await(SCHEDULED, TIMEOUT);
+		normal.await(TIMEOUT, MILLISECONDS, SCHEDULED);
+		higher.await(TIMEOUT, MILLISECONDS, SCHEDULED);
 
-		normal.await(ALLOCATED, TIMEOUT);
-		higher.await(ALLOCATED, TIMEOUT);
+		normal.await(TIMEOUT, MILLISECONDS, ALLOCATED);
+		higher.await(TIMEOUT, MILLISECONDS, ALLOCATED);
 
-		normal.await(RELEASED, TIMEOUT);
-		higher.await(RELEASED, TIMEOUT);
+		normal.await(TIMEOUT, MILLISECONDS, RELEASED);
+		higher.await(TIMEOUT, MILLISECONDS, RELEASED);
 	}
 
 	@Test
 	public void testCancelling() throws InitializeException, RSBException, InterruptedException, TimeoutException {
-		AllocatableResource normal = new AllocatableResource("Normal", MAXIMUM, NORMAL, SYSTEM, 500, 500, "some-resource");
-		AllocatableResource normal2 = new AllocatableResource("Normal2", MAXIMUM, NORMAL, SYSTEM, 1500, 500, "some-resource");
-		AllocatableResource higher = new AllocatableResource("Higher", MAXIMUM, HIGH, SYSTEM, 0, 2500, "some-resource");
+		AllocatableResource normal = new AllocatableResource("Normal", MAXIMUM, NORMAL, SYSTEM, 500, 500, MILLISECONDS, "some-resource");
+		AllocatableResource normal2 = new AllocatableResource("Normal2", MAXIMUM, NORMAL, SYSTEM, 1500, 500, MILLISECONDS, "some-resource");
+		AllocatableResource higher = new AllocatableResource("Higher", MAXIMUM, HIGH, SYSTEM, 0, 2500, MILLISECONDS, "some-resource");
+
 		normal.startup();
-		normal.await(REQUESTED, TIMEOUT);
-		normal.await(SCHEDULED, TIMEOUT);
+		normal.await(TIMEOUT, MILLISECONDS, REQUESTED);
+		normal.await(TIMEOUT, MILLISECONDS, REQUESTED);
 
 		higher.startup();
-		higher.await(REQUESTED, TIMEOUT);
-		higher.await(SCHEDULED, TIMEOUT);
-		higher.await(ALLOCATED, TIMEOUT);
+		higher.await(TIMEOUT, MILLISECONDS, REQUESTED);
+		higher.await(TIMEOUT, MILLISECONDS, SCHEDULED);
+		higher.await(TIMEOUT, MILLISECONDS, ALLOCATED);
 
-		normal.await(CANCELLED, TIMEOUT);
+		normal.await(TIMEOUT, MILLISECONDS, CANCELLED);
 
 		normal2.startup();
-		normal2.await(REJECTED, TIMEOUT);
+		normal2.await(TIMEOUT, MILLISECONDS, REJECTED);
 
-		higher.await(RELEASED, TIMEOUT);
+		higher.await(TIMEOUT, MILLISECONDS, RELEASED);
 	}
 
 	@Test
-	public void testSameResource() throws RSBException, InterruptedException {
+	public void testSameResource() throws RSBException, InterruptedException, TimeoutException {
 		String id = UUID.randomUUID().toString();
-		ResourceAllocationType.ResourceAllocation res = ResourceAllocationType.ResourceAllocation.newBuilder().
+		ResourceAllocation res = ResourceAllocation.newBuilder().
 				setId(id).setState(REQUESTED).setDescription("Same").setPolicy(MAXIMUM).
-				setPriority(NORMAL).setInitiator(SYSTEM).setSlot(IntervalUtils.buildRelativeRst(0, 2000)).
+				setPriority(NORMAL).setInitiator(SYSTEM).setSlot(buildRelativeRst(0, 2000, MILLISECONDS)).
 				addResourceIds("some-resource").build();
 
 		AllocatableResource ar = new AllocatableResource(res);
 		AllocatableResource ar2 = new AllocatableResource(res);
 
 		ar.startup();
-		ar.await(SCHEDULED);
+		ar.await(TIMEOUT, MILLISECONDS, SCHEDULED);
 
 		ar2.startup();
 
-		ar.await(ALLOCATED);
-		ar2.await(ALLOCATED);
+		ar.await(TIMEOUT, MILLISECONDS, ALLOCATED);
+		ar2.await(TIMEOUT, MILLISECONDS, ALLOCATED);
 
-		ar.await(RELEASED);
-		ar2.await(RELEASED);
+		ar.await(TIMEOUT, MILLISECONDS, RELEASED);
+		ar2.await(TIMEOUT, MILLISECONDS, RELEASED);
 	}
 }

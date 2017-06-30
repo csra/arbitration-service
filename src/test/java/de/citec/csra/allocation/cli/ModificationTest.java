@@ -16,8 +16,8 @@
  */
 package de.citec.csra.allocation.cli;
 
-import de.citec.csra.rst.util.StringRepresentation;
 import java.util.concurrent.ExecutionException;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import java.util.concurrent.TimeoutException;
 import org.junit.AfterClass;
 import static org.junit.Assert.assertTrue;
@@ -26,9 +26,10 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import rsb.InitializeException;
 import rsb.RSBException;
-import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initiator;
-import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy;
-import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority;
+import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initiator.SYSTEM;
+import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy.MAXIMUM;
+import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority.HIGH;
+import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority.NORMAL;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.ALLOCATED;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.RELEASED;
 
@@ -50,33 +51,33 @@ public class ModificationTest {
 	}
 
 	@Test
-	public void testModification() throws InitializeException, InterruptedException, RSBException, ExecutionException, TimeoutException {
+	public void testModification() throws InitializeException, InterruptedException, RSBException, ExecutionException {
 
-		AllocatableResource ar = new AllocatableResource("second class", Policy.MAXIMUM, Priority.NORMAL, Initiator.SYSTEM, 500, 5000, "some-res");
-		AllocatableResource prio = new AllocatableResource("first class", Policy.MAXIMUM, Priority.HIGH, Initiator.SYSTEM, 2500, 1000, "some-res");
+		AllocatableResource ar = new AllocatableResource("second class", MAXIMUM, NORMAL, SYSTEM, 500, 5000, MILLISECONDS, "some-res");
+		AllocatableResource prio = new AllocatableResource("first class", MAXIMUM, HIGH, SYSTEM, 2500, 1000, MILLISECONDS, "some-res");
 
 		ar.startup();
 		prio.startup();
 
 		try {
-			ar.await(ALLOCATED, 600);
+			ar.await(600, MILLISECONDS, ALLOCATED);
 		} catch (TimeoutException ex) {
 			fail(ex.getMessage());
 		}
 
 		Thread.sleep(100);
-		prio.getRemote().shift(-1000);
-		
+		prio.getRemote().shift(-1000, MILLISECONDS);
+
 		assertTrue(ar.getRemote().isAlive());
 
 		try {
-			ar.await(RELEASED, 1500);
+			ar.await(1500, MILLISECONDS, RELEASED);
 		} catch (TimeoutException ex) {
 			fail(ex.getMessage());
 		}
 
 		try {
-			prio.await(RELEASED, 3000);
+			prio.await(3000, MILLISECONDS, RELEASED);
 		} catch (TimeoutException ex) {
 			fail(ex.getMessage());
 		}
