@@ -85,8 +85,8 @@ public class AllocationTest {
 
 	@Test
 	public void testNonConflict() throws InitializeException, RSBException, InterruptedException, TimeoutException {
-		AllocatableResource some = new AllocatableResource("Some", MAXIMUM, NORMAL, SYSTEM, 100, 500, "some-resource");
-		AllocatableResource other = new AllocatableResource("Other", MAXIMUM, NORMAL, SYSTEM, 100, 500, "other-resource");
+		AllocatableResource some = new AllocatableResource("Some", MAXIMUM, NORMAL, SYSTEM, 100, 500, MILLISECONDS, "some-resource");
+		AllocatableResource other = new AllocatableResource("Other", MAXIMUM, NORMAL, SYSTEM, 100, 500, MILLISECONDS, "other-resource");
 
 		some.startup();
 		other.startup();
