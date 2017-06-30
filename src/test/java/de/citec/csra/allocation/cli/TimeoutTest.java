@@ -34,7 +34,7 @@ import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocatio
  */
 public class TimeoutTest {
 
-	private static final long TIMEOUT = 5000000;
+	private static final long TIMEOUT = 5000;
 
 	@BeforeClass
 	public static void initServer() throws InterruptedException, RSBException {
@@ -45,6 +45,6 @@ public class TimeoutTest {
 	public void testSchedule() throws InitializeException, RSBException, InterruptedException, TimeoutException {
 		AllocatableResource res = new AllocatableResource("Original", MAXIMUM, NORMAL, SYSTEM, 0, 200, MILLISECONDS, "unreachable-resource");
 		res.startup();
-		res.await(CANCELLED, TIMEOUT);
+		res.await(TIMEOUT, MILLISECONDS, CANCELLED);
 	}
 }
