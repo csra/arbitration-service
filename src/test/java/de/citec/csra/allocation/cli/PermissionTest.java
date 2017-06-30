@@ -16,6 +16,7 @@
  */
 package de.citec.csra.allocation.cli;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import java.util.concurrent.TimeoutException;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -35,7 +36,7 @@ import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocatio
  */
 public class PermissionTest {
 
-	private static final long TIMEOUT_US = 5000000;
+	private static final long TIMEOUT = 5000;
 
 	@BeforeClass
 	public static void initServer() throws InterruptedException, RSBException {
@@ -50,8 +51,8 @@ public class PermissionTest {
 	@Test
 	public void testPermission() throws InitializeException, RSBException, InterruptedException, TimeoutException {
 
-		AllocatableResource some = new AllocatableResource("parent", MAXIMUM, NORMAL, SYSTEM, 100, 1000, "some-resource");
-		AllocatableResource other = new AllocatableResource("child", MAXIMUM, NORMAL, SYSTEM, 200, 500, "some-resource");
+		AllocatableResource some = new AllocatableResource("parent", MAXIMUM, NORMAL, SYSTEM, 100, 1000, MILLISECONDS, "some-resource");
+		AllocatableResource other = new AllocatableResource("child", MAXIMUM, NORMAL, SYSTEM, 200, 500, MILLISECONDS, "some-resource");
 		
 		some.getRemote().generateToken();
 		other.getRemote().setToken(some.getRemote().getToken());
@@ -59,10 +60,10 @@ public class PermissionTest {
 		some.startup();
 		other.startup();
 
-		some.await(ALLOCATED, TIMEOUT_US);
-		other.await(ALLOCATED, TIMEOUT_US);
+		some.await(TIMEOUT, MILLISECONDS, ALLOCATED);
+		other.await(TIMEOUT, MILLISECONDS, ALLOCATED);
 		
-		some.await(RELEASED, 1100);
-		other.await(RELEASED, 800);
+		some.await(TIMEOUT, MILLISECONDS, RELEASED);
+		other.await(TIMEOUT, MILLISECONDS, RELEASED);
 	}
 }
