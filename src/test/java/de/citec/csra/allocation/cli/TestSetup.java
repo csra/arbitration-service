@@ -20,12 +20,14 @@ import de.citec.csra.allocation.srv.AllocationServer;
 import de.citec.csra.allocation.vis.MovingChart;
 import static de.citec.csra.rst.util.IntervalUtils.currentTimeInMicros;
 import de.citec.csra.rst.util.StringRepresentation;
+import static de.citec.csra.rst.util.StringRepresentation.shortString;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.junit.AfterClass;
 import static org.junit.Assert.fail;
 import org.junit.BeforeClass;
 import rsb.Factory;
+import rsb.Listener;
 import rsb.RSBException;
 import rsb.config.ParticipantConfig;
 import rsb.config.TransportConfig;
@@ -37,44 +39,66 @@ import rsb.config.TransportConfig;
 public class TestSetup {
 
 	private static final boolean useGUI = false;
+	private static final boolean useLOG = true;
+	private static boolean initialized = false;
 	private static boolean hasGUI;
 
 	@BeforeClass
 	public static void initServer() throws InterruptedException {
+		if (!initialized) {
+			ParticipantConfig cfg = Factory.getInstance().getDefaultParticipantConfig();
+			for (TransportConfig t : cfg.getTransports().values()) {
+				t.setEnabled(t.getName().equalsIgnoreCase("INPROCESS"));
+			}
+			Factory.getInstance().setDefaultParticipantConfig(cfg);
+			if(useLOG){
+			new Thread(() -> {
+				try {
+					Listener li = Factory.getInstance().createListener(AllocationServer.getScope());
+					li.addHandler((e) -> {
+						System.out.println("LEITUNG: " + currentTimeInMicros() + ": " + shortString(e.getData()));
+					}, true);
+					li.activate();
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}).start();
+			}
+			new Thread(() -> {
+				try {
+					AllocationServer a = AllocationServer.getInstance();
+					a.activate();
+					a.listen();
+				} catch (InterruptedException | RSBException ex) {
+					fail("Exception in server thread: " + ex);
+				}
+			}).start();
 
+			if (useGUI && !hasGUI) {
+				try {
+					MovingChart.main(new String[]{"100", "20000"});
+					hasGUI = true;
+				} catch (RSBException ex) {
+					Logger.getLogger(TestSetup.class.getName()).log(Level.SEVERE, null, ex);
+				}
+				Thread.sleep(100);
+			}
+
+			StringRepresentation.setIntervalOrigin(currentTimeInMicros());
+			initialized = true;
+		}
+	}
+
+	@AfterClass
+	public static void shutdownServer() throws InterruptedException, RSBException {
+		if (initialized) {
+			AllocationServer.getInstance().deactivate();
+			initialized = false;
+		}
 		ParticipantConfig cfg = Factory.getInstance().getDefaultParticipantConfig();
 		for (TransportConfig t : cfg.getTransports().values()) {
 			t.setEnabled(t.getName().equalsIgnoreCase("INPROCESS"));
 		}
 		Factory.getInstance().setDefaultParticipantConfig(cfg);
-		new Thread(() -> {
-			try {
-				AllocationServer a = AllocationServer.getInstance();
-				a.activate();
-				a.listen();
-			} catch (InterruptedException | RSBException ex) {
-				fail("Exception in server thread: " + ex);
-			}
-		}).start();
-		Thread.sleep(100);
-
-		if (useGUI && !hasGUI) {
-			try {
-				MovingChart.main(new String[]{"100", "20000"});
-				hasGUI = true;
-			} catch (RSBException ex) {
-				Logger.getLogger(TestSetup.class.getName()).log(Level.SEVERE, null, ex);
-			}
-			Thread.sleep(100);
-		}
-		
-		StringRepresentation.setIntervalOrigin(currentTimeInMicros());
-
-	}
-
-	@AfterClass
-	public static void shutdownServer() throws InterruptedException, RSBException {
-		AllocationServer.getInstance().deactivate();
-		Thread.sleep(100);
 	}
 }

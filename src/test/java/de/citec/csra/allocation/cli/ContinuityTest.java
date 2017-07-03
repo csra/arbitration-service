@@ -22,7 +22,6 @@ import static de.citec.csra.allocation.cli.ExecutableResource.Completion.RETAIN;
 import static de.citec.csra.rst.util.IntervalUtils.currentTimeInMicros;
 import java.util.concurrent.ExecutionException;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
-import org.junit.AfterClass;
 import static org.junit.Assert.assertTrue;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -40,11 +39,6 @@ public class ContinuityTest {
 	@BeforeClass
 	public static void initServer() throws InterruptedException, RSBException {
 		TestSetup.initServer();
-	}
-
-	@AfterClass
-	public static void shutdownServer() throws InterruptedException, RSBException {
-		TestSetup.shutdownServer();
 	}
 
 	@Test
@@ -80,7 +74,7 @@ public class ContinuityTest {
 		long after = currentTimeInMicros();
 		long runtime = after - before;
 
-		assertTrue("at least block for allocated time", runtime >= duration);
+		assertTrue("at least block for allocated time: " + runtime + ">=" + duration + "?", runtime >= duration);
 	}
 
 	@Test

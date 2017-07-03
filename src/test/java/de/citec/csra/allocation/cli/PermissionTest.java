@@ -18,7 +18,6 @@ package de.citec.csra.allocation.cli;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import java.util.concurrent.TimeoutException;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import rsb.InitializeException;
@@ -41,11 +40,6 @@ public class PermissionTest {
 	@BeforeClass
 	public static void initServer() throws InterruptedException, RSBException {
 		TestSetup.initServer();
-	}
-	
-	@AfterClass
-	public static void shutdownServer() throws InterruptedException, RSBException {
-		TestSetup.shutdownServer();
 	}
 
 	@Test

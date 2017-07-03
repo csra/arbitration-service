@@ -19,7 +19,6 @@ package de.citec.csra.allocation.cli;
 import java.util.concurrent.ExecutionException;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import java.util.concurrent.TimeoutException;
-import org.junit.AfterClass;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import org.junit.BeforeClass;
@@ -43,11 +42,6 @@ public class ModificationTest {
 	@BeforeClass
 	public static void initServer() throws InterruptedException, RSBException {
 		TestSetup.initServer();
-	}
-
-	@AfterClass
-	public static void shutdownServer() throws InterruptedException, RSBException {
-		TestSetup.shutdownServer();
 	}
 
 	@Test

@@ -20,7 +20,6 @@ import static de.citec.csra.rst.util.IntervalUtils.buildRelativeRst;
 import java.util.UUID;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import java.util.concurrent.TimeoutException;
-import org.junit.AfterClass;
 import static org.junit.Assert.fail;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -49,11 +48,6 @@ public class AllocationTest {
 	@BeforeClass
 	public static void initServer() throws InterruptedException, RSBException {
 		TestSetup.initServer();
-	}
-
-	@AfterClass
-	public static void shutdownServer() throws InterruptedException, RSBException {
-		TestSetup.shutdownServer();
 	}
 
 	@Test
