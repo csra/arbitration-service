@@ -44,7 +44,7 @@ import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocatio
  */
 public class AllocationTest {
 
-	private static final long TIMEOUT = 5000;
+	private static final long TIMEOUT = 2000;
 
 	@BeforeClass
 	public static void initServer() throws InterruptedException, RSBException {
@@ -106,8 +106,8 @@ public class AllocationTest {
 
 	@Test
 	public void testShortening() throws InitializeException, RSBException, InterruptedException, TimeoutException {
-		AllocatableResource normal = new AllocatableResource("Higher", MAXIMUM, NORMAL, SYSTEM, 0, 1500, MILLISECONDS, "some-resource");
-		AllocatableResource higher = new AllocatableResource("Higher", MAXIMUM, HIGH, SYSTEM, 500, 500, MILLISECONDS, "some-resource");
+		AllocatableResource normal = new AllocatableResource("Normal", MAXIMUM, NORMAL, SYSTEM, 0, 1500, MILLISECONDS, "some-resource");
+		AllocatableResource higher = new AllocatableResource("Higher", MAXIMUM, HIGH, SYSTEM, 150, 500, MILLISECONDS, "some-resource");
 		normal.startup();
 		higher.startup();
 
@@ -126,9 +126,9 @@ public class AllocationTest {
 
 	@Test
 	public void testCancelling() throws InitializeException, RSBException, InterruptedException, TimeoutException {
-		AllocatableResource normal = new AllocatableResource("Normal", MAXIMUM, NORMAL, SYSTEM, 500, 500, MILLISECONDS, "some-resource");
-		AllocatableResource normal2 = new AllocatableResource("Normal2", MAXIMUM, NORMAL, SYSTEM, 1500, 500, MILLISECONDS, "some-resource");
-		AllocatableResource higher = new AllocatableResource("Higher", MAXIMUM, HIGH, SYSTEM, 0, 2500, MILLISECONDS, "some-resource");
+		AllocatableResource normal = new AllocatableResource("Normal", MAXIMUM, NORMAL, SYSTEM, 500, 200, MILLISECONDS, "some-resource");
+		AllocatableResource normal2 = new AllocatableResource("Normal2", MAXIMUM, NORMAL, SYSTEM, 1000, 200, MILLISECONDS, "some-resource");
+		AllocatableResource higher = new AllocatableResource("Higher", MAXIMUM, HIGH, SYSTEM, 0, 1500, MILLISECONDS, "some-resource");
 
 		normal.startup();
 		normal.await(TIMEOUT, MILLISECONDS, REQUESTED);

@@ -42,7 +42,7 @@ public class TimeoutTest {
 	}
 
 	@Test
-	public void testSchedule() throws InitializeException, RSBException, InterruptedException, TimeoutException {
+	public void testTimeout() throws InitializeException, RSBException, InterruptedException, TimeoutException {
 		AllocatableResource res = new AllocatableResource("Original", MAXIMUM, NORMAL, SYSTEM, 0, 200, MILLISECONDS, "unreachable-resource");
 		res.startup();
 		res.await(TIMEOUT, MILLISECONDS, CANCELLED);

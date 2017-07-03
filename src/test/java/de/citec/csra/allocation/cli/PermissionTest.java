@@ -36,7 +36,7 @@ import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocatio
  */
 public class PermissionTest {
 
-	private static final long TIMEOUT = 5000;
+	private static final long TIMEOUT = 3500;
 
 	@BeforeClass
 	public static void initServer() throws InterruptedException, RSBException {
@@ -51,8 +51,8 @@ public class PermissionTest {
 	@Test
 	public void testPermission() throws InitializeException, RSBException, InterruptedException, TimeoutException {
 
-		AllocatableResource some = new AllocatableResource("parent", MAXIMUM, NORMAL, SYSTEM, 100, 1000, MILLISECONDS, "some-resource");
-		AllocatableResource other = new AllocatableResource("child", MAXIMUM, NORMAL, SYSTEM, 200, 500, MILLISECONDS, "some-resource");
+		AllocatableResource some = new AllocatableResource("parent", MAXIMUM, NORMAL, SYSTEM, 200, 3000, MILLISECONDS, "some-resource", "parent");
+		AllocatableResource other = new AllocatableResource("child", MAXIMUM, NORMAL, SYSTEM, 500, 2000, MILLISECONDS, "some-resource", "child");
 		
 		some.getRemote().generateToken();
 		other.getRemote().setToken(some.getRemote().getToken());
