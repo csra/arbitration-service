@@ -44,7 +44,7 @@ public class NotificationService {
 
 	private static NotificationService instance;
 
-	public static NotificationService getInstance() {
+	public synchronized static NotificationService getInstance() {
 		if (instance == null) {
 			instance = new NotificationService();
 		}
