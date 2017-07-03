@@ -16,6 +16,7 @@
  */
 package de.citec.csra.allocation.srv;
 
+import static de.citec.csra.rst.util.StringRepresentation.shortString;
 import java.util.concurrent.BlockingQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -80,9 +81,10 @@ public class AllocationServer {
 
 	public void listen() throws InterruptedException {
 		LOG.log(Level.INFO, "Allocation service listening at ''{0}''.", this.listener.getScope());
+		Allocations.getInstance();
 		while (this.listener.isActive()) {
 			ResourceAllocation incoming = this.queue.take();
-			LOG.log(Level.FINE, "Received client update ''{0}''.", incoming.toString().replaceAll("\n", " "));
+			LOG.log(Level.FINE, "Received client update ''{0}''.", shortString(incoming));
 			Allocations.getInstance().handle(incoming);
 		}
 	}
