@@ -72,6 +72,7 @@ public class RemoteNotifier implements Runnable {
 
 			State initial = Allocations.getInstance().getState(id);
 			if (initial == null) {
+				LOG.log(Level.WARNING, "Illegal initial state ''{0}'', aborting ''{2}'': ''{1}''", new Object[]{initial, shortString(Allocations.getInstance().get(id)), id});
 				return;
 			}
 
@@ -102,18 +103,14 @@ public class RemoteNotifier implements Runnable {
 				while ((delay = getSlot().getBegin().getTime() - currentTimeInMicros()) > 0) {
 					try {
 						monitor.wait(delay / 1000, (int) ((delay % 1000) * 1000));
+						if (!confirmState(SCHEDULED)) {
+							return;
+						}
 					} catch (InterruptedException ex) {
 						interrupted();
 						return;
 					}
-					if (!confirmState(SCHEDULED)) {
-						return;
-					}
 				}
-			}
-
-			if (!confirmState(SCHEDULED)) {
-				return;
 			}
 
 			Allocations.getInstance().setState(id, ALLOCATED);
@@ -124,17 +121,13 @@ public class RemoteNotifier implements Runnable {
 				while ((remaining = getSlot().getEnd().getTime() - currentTimeInMicros()) > 0) {
 					try {
 						monitor.wait(remaining / 1000, (int) ((remaining % 1000) * 1000));
+						if (!confirmState(ALLOCATED)) {
+							return;
+						}
 					} catch (InterruptedException ex) {
 						interrupted();
 					}
-					if (!confirmState(ALLOCATED)) {
-						return;
-					}
 				}
-			}
-
-			if (!confirmState(ALLOCATED)) {
-				return;
 			}
 
 			Allocations.getInstance().setState(id, RELEASED);
@@ -180,6 +173,10 @@ public class RemoteNotifier implements Runnable {
 
 	private boolean confirmState(State state) {
 		State current = Allocations.getInstance().getState(id);
-		return current != null && current.equals(state);
+		boolean confirmed = current != null && current.equals(state);
+		if (!confirmed) {
+			LOG.log(Level.WARNING, "Could not confirm state ''{0}'': Current state is ''{1}''.", new State[]{state, current});
+		}
+		return confirmed;
 	}
 }
