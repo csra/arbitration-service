@@ -18,6 +18,7 @@ package de.citec.csra.allocation.cli;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import java.util.concurrent.TimeoutException;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import rsb.InitializeException;
@@ -45,9 +46,9 @@ public class PermissionTest {
 	@Test
 	public void testPermission() throws InitializeException, RSBException, InterruptedException, TimeoutException {
 
-		AllocatableResource some = new AllocatableResource("parent", MAXIMUM, NORMAL, SYSTEM, 200, 3000, MILLISECONDS, "some-resource", "parent");
-		AllocatableResource other = new AllocatableResource("child", MAXIMUM, NORMAL, SYSTEM, 500, 2000, MILLISECONDS, "some-resource", "child");
-		
+		AllocatableResource some = new AllocatableResource("parent", MAXIMUM, NORMAL, SYSTEM, 100, 500, MILLISECONDS, "some-resource", "parent");
+		AllocatableResource other = new AllocatableResource("child", MAXIMUM, NORMAL, SYSTEM, 200, 500, MILLISECONDS, "some-resource", "child");
+
 		some.getRemote().generateToken();
 		other.getRemote().setToken(some.getRemote().getToken());
 
@@ -56,7 +57,7 @@ public class PermissionTest {
 
 		some.await(TIMEOUT, MILLISECONDS, ALLOCATED);
 		other.await(TIMEOUT, MILLISECONDS, ALLOCATED);
-		
+
 		some.await(TIMEOUT, MILLISECONDS, RELEASED);
 		other.await(TIMEOUT, MILLISECONDS, RELEASED);
 	}

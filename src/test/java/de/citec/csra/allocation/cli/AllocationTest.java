@@ -52,7 +52,7 @@ public class AllocationTest {
 
 	@Test
 	public void testExpiration() throws InitializeException, RSBException, InterruptedException, TimeoutException {
-		AllocatableResource res = new AllocatableResource("Original", MAXIMUM, NORMAL, SYSTEM, -500, 100, MILLISECONDS, "some-resource");
+		AllocatableResource res = new AllocatableResource("Expired", MAXIMUM, NORMAL, SYSTEM, -500, 100, MILLISECONDS, "expired-resource");
 		res.startup();
 
 		res.await(TIMEOUT, MILLISECONDS, REQUESTED);
@@ -66,10 +66,10 @@ public class AllocationTest {
 			fail("should not be allcoated");
 		}
 	}
-
+	
 	@Test
 	public void testSingle() throws InitializeException, RSBException, InterruptedException, TimeoutException {
-		AllocatableResource res = new AllocatableResource("Original", MAXIMUM, NORMAL, SYSTEM, 100, 500, MILLISECONDS, "some-resource");
+		AllocatableResource res = new AllocatableResource("Single", MAXIMUM, NORMAL, SYSTEM, 100, 500, MILLISECONDS, "single-resource");
 		res.startup();
 		res.await(TIMEOUT, MILLISECONDS, REQUESTED);
 		res.await(TIMEOUT, MILLISECONDS, SCHEDULED);
@@ -100,8 +100,8 @@ public class AllocationTest {
 
 	@Test
 	public void testShortening() throws InitializeException, RSBException, InterruptedException, TimeoutException {
-		AllocatableResource normal = new AllocatableResource("Normal", MAXIMUM, NORMAL, SYSTEM, 0, 1500, MILLISECONDS, "some-resource");
-		AllocatableResource higher = new AllocatableResource("Higher", MAXIMUM, HIGH, SYSTEM, 150, 500, MILLISECONDS, "some-resource");
+		AllocatableResource normal = new AllocatableResource("Normal", MAXIMUM, NORMAL, SYSTEM, 0, 1500, MILLISECONDS, "shared-resource", "normal");
+		AllocatableResource higher = new AllocatableResource("Higher", MAXIMUM, HIGH, SYSTEM, 150, 500, MILLISECONDS, "shared-resource", "higher");
 		normal.startup();
 		higher.startup();
 
@@ -117,16 +117,16 @@ public class AllocationTest {
 		normal.await(TIMEOUT, MILLISECONDS, RELEASED);
 		higher.await(TIMEOUT, MILLISECONDS, RELEASED);
 	}
-
+	
 	@Test
 	public void testCancelling() throws InitializeException, RSBException, InterruptedException, TimeoutException {
-		AllocatableResource normal = new AllocatableResource("Normal", MAXIMUM, NORMAL, SYSTEM, 500, 200, MILLISECONDS, "some-resource");
-		AllocatableResource normal2 = new AllocatableResource("Normal2", MAXIMUM, NORMAL, SYSTEM, 1000, 200, MILLISECONDS, "some-resource");
-		AllocatableResource higher = new AllocatableResource("Higher", MAXIMUM, HIGH, SYSTEM, 0, 1500, MILLISECONDS, "some-resource");
+		AllocatableResource normal = new AllocatableResource("Normal", MAXIMUM, NORMAL, SYSTEM, 500, 200, MILLISECONDS, "shared-resource", "normal");
+		AllocatableResource normal2 = new AllocatableResource("Normal2", MAXIMUM, NORMAL, SYSTEM, 1000, 200, MILLISECONDS, "shared-resource", "normal");
+		AllocatableResource higher = new AllocatableResource("Higher", MAXIMUM, HIGH, SYSTEM, 0, 1500, MILLISECONDS, "shared-resource", "higher");
 
 		normal.startup();
 		normal.await(TIMEOUT, MILLISECONDS, REQUESTED);
-		normal.await(TIMEOUT, MILLISECONDS, REQUESTED);
+		normal.await(TIMEOUT, MILLISECONDS, SCHEDULED);
 
 		higher.startup();
 		higher.await(TIMEOUT, MILLISECONDS, REQUESTED);
@@ -147,12 +147,13 @@ public class AllocationTest {
 		ResourceAllocation res = ResourceAllocation.newBuilder().
 				setId(id).setState(REQUESTED).setDescription("Same").setPolicy(MAXIMUM).
 				setPriority(NORMAL).setInitiator(SYSTEM).setSlot(buildRelativeRst(0, 2000, MILLISECONDS)).
-				addResourceIds("some-resource").build();
+				addResourceIds("same-resource").build();
 
 		AllocatableResource ar = new AllocatableResource(res);
 		AllocatableResource ar2 = new AllocatableResource(res);
 
 		ar.startup();
+		ar.await(TIMEOUT, MILLISECONDS, REQUESTED);
 		ar.await(TIMEOUT, MILLISECONDS, SCHEDULED);
 
 		ar2.startup();

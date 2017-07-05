@@ -19,8 +19,8 @@ package de.citec.csra.allocation.cli;
 import java.util.concurrent.ExecutionException;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import java.util.concurrent.TimeoutException;
+import org.junit.AfterClass;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import rsb.InitializeException;
@@ -31,6 +31,8 @@ import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocatio
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority.NORMAL;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.ALLOCATED;
 import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.RELEASED;
+import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.REQUESTED;
+import static rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State.SCHEDULED;
 
 /**
  *
@@ -45,7 +47,7 @@ public class ModificationTest {
 	}
 
 	@Test
-	public void testModification() throws InitializeException, InterruptedException, RSBException, ExecutionException {
+	public void testModification() throws InitializeException, InterruptedException, RSBException, TimeoutException, ExecutionException {
 
 		AllocatableResource ar = new AllocatableResource("second class", MAXIMUM, NORMAL, SYSTEM, 500, 5000, MILLISECONDS, "some-res");
 		AllocatableResource prio = new AllocatableResource("first class", MAXIMUM, HIGH, SYSTEM, 2500, 1000, MILLISECONDS, "some-res");
@@ -53,27 +55,21 @@ public class ModificationTest {
 		ar.startup();
 		prio.startup();
 
-		try {
-			ar.await(600, MILLISECONDS, ALLOCATED);
-		} catch (TimeoutException ex) {
-			fail(ex.getMessage());
-		}
+		ar.await(250, MILLISECONDS, REQUESTED);
+		prio.await(250, MILLISECONDS, REQUESTED);
+
+		ar.await(250, MILLISECONDS, SCHEDULED);
+		prio.await(250, MILLISECONDS, SCHEDULED);
+
+		ar.await(600, MILLISECONDS, ALLOCATED);
 
 		Thread.sleep(100);
 		prio.getRemote().shift(-1000, MILLISECONDS);
 
 		assertTrue(ar.getRemote().isAlive());
 
-		try {
-			ar.await(1500, MILLISECONDS, RELEASED);
-		} catch (TimeoutException ex) {
-			fail(ex.getMessage());
-		}
+		ar.await(1500, MILLISECONDS, RELEASED);
 
-		try {
-			prio.await(3000, MILLISECONDS, RELEASED);
-		} catch (TimeoutException ex) {
-			fail(ex.getMessage());
-		}
+		prio.await(3000, MILLISECONDS, RELEASED);
 	}
 }

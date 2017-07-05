@@ -19,13 +19,10 @@ package de.citec.csra.allocation.cli;
 import de.citec.csra.allocation.srv.AllocationServer;
 import de.citec.csra.allocation.vis.MovingChart;
 import static de.citec.csra.rst.util.IntervalUtils.currentTimeInMicros;
-import de.citec.csra.rst.util.StringRepresentation;
 import static de.citec.csra.rst.util.StringRepresentation.shortString;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.junit.AfterClass;
 import static org.junit.Assert.fail;
-import org.junit.BeforeClass;
 import rsb.Factory;
 import rsb.Listener;
 import rsb.RSBException;
@@ -38,67 +35,94 @@ import rsb.config.TransportConfig;
  */
 public class TestSetup {
 
+	private static final boolean useServer = true;
 	private static final boolean useGUI = false;
-	private static final boolean useLOG = true;
+	private static final Boolean useLOG = false;
 	private static boolean initialized = false;
+	private static boolean hasServer;
 	private static boolean hasGUI;
+	private static boolean hasLOG;
 
-	@BeforeClass
-	public static void initServer() throws InterruptedException {
-		if (!initialized) {
-			ParticipantConfig cfg = Factory.getInstance().getDefaultParticipantConfig();
-			for (TransportConfig t : cfg.getTransports().values()) {
-				t.setEnabled(t.getName().equalsIgnoreCase("INPROCESS"));
-			}
-			Factory.getInstance().setDefaultParticipantConfig(cfg);
-			if(useLOG){
-			new Thread(() -> {
-				try {
-					Listener li = Factory.getInstance().createListener(AllocationServer.getScope());
-					li.addHandler((e) -> {
-						System.out.println("LEITUNG: " + currentTimeInMicros() + ": " + shortString(e.getData()));
-					}, true);
-					li.activate();
-				} catch (Exception e) {
-					e.printStackTrace();
+	public static void initServer() {
+		synchronized (useLOG) {
+			if (!initialized) {
+				ParticipantConfig cfg = Factory.getInstance().getDefaultParticipantConfig();
+				for (TransportConfig t : cfg.getTransports().values()) {
+					t.setEnabled(t.getName().equalsIgnoreCase("INPROCESS"));
 				}
-			}).start();
-			}
-			new Thread(() -> {
+				Factory.getInstance().setDefaultParticipantConfig(cfg);
+
 				try {
-					AllocationServer a = AllocationServer.getInstance();
-					a.activate();
-					a.listen();
-				} catch (InterruptedException | RSBException ex) {
-					fail("Exception in server thread: " + ex);
+					RemoteAllocationService.getInstance();
+					RemoteAllocationService.getScope();
+				} catch (RSBException ex) {
+					Logger.getLogger(TestSetup.class.getName()).log(Level.SEVERE, "could not cache remote allocation service", ex);
 				}
-			}).start();
+				initialized = true;
+			}
+
+			if (useLOG && !hasLOG) {
+				new Thread(() -> {
+					try {
+						Listener li = Factory.getInstance().createListener(AllocationServer.getScope());
+						li.addHandler((e) -> {
+							System.out.println("RSB: " + currentTimeInMicros() + ": " + shortString(e.getData()));
+						}, true);
+						li.activate();
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				}).start();
+				hasLOG = true;
+			}
+
+			if (useServer && !hasServer) {
+				new Thread(() -> {
+					try {
+						AllocationServer a = AllocationServer.getInstance();
+						a.activate();
+						a.listen();
+					} catch (InterruptedException | RSBException ex) {
+						ex.printStackTrace();
+						fail("Exception in server thread: " + ex);
+					}
+				}).start();
+				hasServer = true;
+			}
 
 			if (useGUI && !hasGUI) {
 				try {
-					MovingChart.main(new String[]{"100", "20000"});
+					MovingChart.main(new String[]{"30000", "30000"});
 					hasGUI = true;
-				} catch (RSBException ex) {
-					Logger.getLogger(TestSetup.class.getName()).log(Level.SEVERE, null, ex);
+				} catch (RSBException | InterruptedException ex) {
+					Logger.getLogger(TestSetup.class.getName()).log(Level.SEVERE, "Exception during gui setup", ex);
 				}
-				Thread.sleep(100);
+				hasGUI = true;
 			}
-
-			StringRepresentation.setIntervalOrigin(currentTimeInMicros());
-			initialized = true;
 		}
 	}
 
-	@AfterClass
 	public static void shutdownServer() throws InterruptedException, RSBException {
-		if (initialized) {
-			AllocationServer.getInstance().deactivate();
-			initialized = false;
+		synchronized (useLOG) {
+			if (!initialized) {
+				ParticipantConfig cfg = Factory.getInstance().getDefaultParticipantConfig();
+				for (TransportConfig t : cfg.getTransports().values()) {
+					t.setEnabled(t.getName().equalsIgnoreCase("INPROCESS"));
+				}
+				Factory.getInstance().setDefaultParticipantConfig(cfg);
+
+				try {
+					RemoteAllocationService.getInstance();
+					RemoteAllocationService.getScope();
+				} catch (RSBException ex) {
+					Logger.getLogger(TestSetup.class.getName()).log(Level.SEVERE, "could not cache remote allocation service", ex);
+				}
+				initialized = true;
+			}
+			if (hasServer) {
+				AllocationServer.getInstance().deactivate();
+				hasServer = false;
+			}
 		}
-		ParticipantConfig cfg = Factory.getInstance().getDefaultParticipantConfig();
-		for (TransportConfig t : cfg.getTransports().values()) {
-			t.setEnabled(t.getName().equalsIgnoreCase("INPROCESS"));
-		}
-		Factory.getInstance().setDefaultParticipantConfig(cfg);
 	}
 }
