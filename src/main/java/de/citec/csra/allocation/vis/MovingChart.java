@@ -71,7 +71,7 @@ import rst.timing.IntervalType.Interval;
 public class MovingChart extends ApplicationFrame implements ActionListener, Handler {
 
 	private final static int DEFAULT_PAST = 60000;
-	private final static int DEFAULT_FUTURE = 180000;
+	private final static int DEFAULT_FUTURE = 1200000;
 
 	static {
 		DefaultConverterRepository.getDefaultConverterRepository()
