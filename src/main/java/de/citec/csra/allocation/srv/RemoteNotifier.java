@@ -19,6 +19,8 @@ package de.citec.csra.allocation.srv;
 import static de.citec.csra.rst.util.IntervalUtils.currentTimeInMicros;
 import static de.citec.csra.rst.util.StringRepresentation.shortString;
 import java.util.logging.Level;
+import static java.util.logging.Level.FINE;
+import static java.util.logging.Level.WARNING;
 import java.util.logging.Logger;
 import rsb.Informer;
 import rsb.RSBException;
@@ -50,8 +52,8 @@ public class RemoteNotifier implements Runnable {
 	}
 
 	public void update() {
+		publish();
 		synchronized (monitor) {
-			publish();
 			monitor.notify();
 		}
 	}
@@ -59,10 +61,14 @@ public class RemoteNotifier implements Runnable {
 	private void publish() {
 		ResourceAllocation allocation = Allocations.getInstance().get(id);
 		try {
-			LOG.log(Level.INFO, "Publish allocation: {0}", shortString(allocation));
-			this.informer.publish(allocation);
-		} catch (RSBException | NullPointerException ex) {
-			LOG.log(Level.SEVERE, "could not publish current allocation status '" + shortString(allocation) + "'", ex);
+			if (allocation != null) {
+				LOG.log(Level.INFO, "Publish allocation: {0}", shortString(allocation));
+				this.informer.publish(allocation);
+			} else {
+				LOG.log(Level.WARNING, "Publish allocation with id ''{0}'' ignored, no such allocation available", id);
+			}
+		} catch (RSBException ex) {
+			LOG.log(Level.SEVERE, "Could not publish current allocation '" + shortString(allocation) + "'", ex);
 		}
 	}
 
@@ -72,7 +78,7 @@ public class RemoteNotifier implements Runnable {
 
 			State initial = Allocations.getInstance().getState(id);
 			if (initial == null) {
-				LOG.log(Level.WARNING, "Illegal initial state ''{0}'', aborting ''{2}'': ''{1}''", new Object[]{initial, shortString(Allocations.getInstance().get(id)), id});
+				LOG.log(Level.WARNING, "No initial state found: ''{0}'', discarding  id ''{1}''", new Object[]{initial, id});
 				return;
 			}
 
@@ -84,49 +90,53 @@ public class RemoteNotifier implements Runnable {
 						} catch (InterruptedException ex) {
 							interrupted();
 						}
-						if (!confirmState(SCHEDULED)) {
-							Allocations.getInstance().setState(this.id, REJECTED);
-							publish();
-							return;
-						}
+					}
+					if (!confirmState(SCHEDULED, WARNING)) {
+						Allocations.getInstance().setState(this.id, REJECTED);
+						publish();
+						return;
 					}
 					break;
 				case SCHEDULED:
 					break;
 				default:
-					LOG.log(Level.WARNING, "Illegal initial state ''{0}'', aborting.", initial);
+					LOG.log(Level.WARNING, "Illegal initial state ''{0}'', discarding id ''{1}'': already monitored?", initial);
 					return;
 			}
 
-			synchronized (monitor) {
-				long delay;
-				while ((delay = getSlot().getBegin().getTime() - currentTimeInMicros()) > 0) {
-					try {
-						monitor.wait(delay / 1000, (int) ((delay % 1000) * 1000));
-						if (!confirmState(SCHEDULED)) {
-							return;
-						}
-					} catch (InterruptedException ex) {
-						interrupted();
+//			wait for slot to begin
+			long wait;
+			Interval slot;
+			while ((slot = getSlot()) != null && ((wait = slot.getBegin().getTime()) - currentTimeInMicros()) > 0) {
+				try {
+					synchronized (monitor) {
+						monitor.wait(wait / 1000, (int) ((wait % 1000) * 1000));
+					}
+					if (!confirmState(SCHEDULED, FINE)) {
 						return;
 					}
+				} catch (InterruptedException ex) {
+					ex.printStackTrace();
+					interrupted();
+					return;
 				}
 			}
 
 			Allocations.getInstance().setState(id, ALLOCATED);
 			publish();
 
-			synchronized (monitor) {
-				long remaining;
-				while ((remaining = getSlot().getEnd().getTime() - currentTimeInMicros()) > 0) {
-					try {
-						monitor.wait(remaining / 1000, (int) ((remaining % 1000) * 1000));
-						if (!confirmState(ALLOCATED)) {
-							return;
-						}
-					} catch (InterruptedException ex) {
-						interrupted();
+//			wait for slot to end
+			while ((slot = getSlot()) != null && ((wait = slot.getEnd().getTime()) - currentTimeInMicros()) > 0) {
+				try {
+					synchronized (monitor) {
+						monitor.wait(wait / 1000, (int) ((wait % 1000) * 1000));
 					}
+					if (!confirmState(ALLOCATED, FINE)) {
+						return;
+					}
+				} catch (InterruptedException ex) {
+					ex.printStackTrace();
+					interrupted();
 				}
 			}
 
@@ -171,11 +181,11 @@ public class RemoteNotifier implements Runnable {
 		Thread.currentThread().interrupt();
 	}
 
-	private boolean confirmState(State state) {
+	private boolean confirmState(State state, Level level) {
 		State current = Allocations.getInstance().getState(id);
 		boolean confirmed = current != null && current.equals(state);
 		if (!confirmed) {
-			LOG.log(Level.WARNING, "Could not confirm state ''{0}'': Current state is ''{1}''.", new State[]{state, current});
+			LOG.log(level, "Could not confirm state ''{0}'' for id ''{1}'': Current state is ''{2}''.", new Object[]{state, id, current});
 		}
 		return confirmed;
 	}

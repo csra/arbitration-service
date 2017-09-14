@@ -22,6 +22,7 @@ package de.citec.csra.allocation.srv;
  * (<a href=mailto:patrick.holthaus@uni-bielefeld.de>patrick.holthaus@uni-bielefeld.de</a>)
  */
 public class Allocator {
+
 	public static void main(String[] args) throws Exception {
 		AllocationServer a = AllocationServer.getInstance();
 		a.activate();
