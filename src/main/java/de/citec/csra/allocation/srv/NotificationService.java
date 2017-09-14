@@ -83,7 +83,7 @@ public class NotificationService {
 		if (functional()) {
 			if (this.notifiers.containsKey(id)) {
 				RemoteNotifier notifier = this.notifiers.get(id);
-				if(publish){
+				if (publish) {
 					notifier.update();
 				}
 				if (!Allocations.getInstance().isAlive(id)) {
