@@ -17,6 +17,7 @@
 package de.citec.csra.allocation.vis;
 
 import de.citec.csra.allocation.srv.AllocationServer;
+import de.citec.csra.rst.util.IntervalUtils;
 import java.awt.BasicStroke;
 import static java.awt.BasicStroke.CAP_BUTT;
 import static java.awt.BasicStroke.JOIN_BEVEL;
@@ -32,6 +33,8 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
@@ -55,11 +58,15 @@ import org.jfree.ui.RefineryUtilities;
 import rsb.Event;
 import rsb.Factory;
 import rsb.Handler;
+import rsb.Informer;
 import rsb.Listener;
+import rsb.ParticipantId;
 import rsb.RSBException;
 import rsb.converter.DefaultConverterRepository;
 import rsb.converter.ProtocolBufferConverter;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation;
+import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Initiator;
+import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Policy;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.Priority;
 import rst.communicationpatterns.ResourceAllocationType.ResourceAllocation.State;
 import rst.communicationpatterns.TaskStateType;
@@ -299,11 +306,63 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 
 		final MovingChart demo = new MovingChart("Resource Allocation Chart", past, future);
 		Listener l = Factory.getInstance().createListener(AllocationServer.getScope());
+		final Informer myInformer = Factory.getInstance().createInformer(AllocationServer.getScope());
+		final Object monitor = new Object();
+
+		final String queryId = UUID.randomUUID().toString();
+		final String randomResource = UUID.randomUUID().toString();
+		final ResourceAllocation query = ResourceAllocation.newBuilder().
+				setDescription("server id query").
+				setId(queryId).
+				setSlot(IntervalUtils.buildRelativeRst(0, 10000, TimeUnit.MICROSECONDS)).
+				setPolicy(Policy.FIRST).
+				setPriority(Priority.NO).
+				setState(State.REQUESTED).
+				setInitiator(Initiator.SYSTEM).
+				addResourceIds(randomResource).
+				build();
+
+		Handler filterInstall = (event) -> {
+			boolean hasFilter = false;
+			if (event.getData() instanceof ResourceAllocation) {
+				ResourceAllocation response = (ResourceAllocation) event.getData();
+				if (response.getId().equals(queryId)) {
+					if (!event.getId().getParticipantId().equals(myInformer.getId())) {
+						final ParticipantId serverId = event.getId().getParticipantId();
+						if (!hasFilter) {
+							l.addFilter((toFilter) -> {
+								boolean ok = toFilter.getId().getParticipantId().equals(serverId);
+								return ok;
+							});
+							hasFilter = true;
+						}
+						synchronized (monitor) {
+							monitor.notify();
+						}
+
+					}
+				}
+			}
+		};
+		l.addHandler(filterInstall, true);
+
+		l.activate();
+		myInformer.activate();
+		myInformer.publish(query);
+		myInformer.deactivate();
+		synchronized (monitor) {
+			try {
+				monitor.wait(5000);
+			} catch (InterruptedException ex) {
+				System.out.println("failed to install server filter, timeout");
+			}
+		}
+		
+		l.removeHandler(filterInstall, true);
 		l.addHandler(demo, true);
 
 		demo.pack();
 		RefineryUtilities.centerFrameOnScreen(demo);
-		l.activate();
 		demo.setVisible(true);
 
 	}
