@@ -261,15 +261,13 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 		}
 
 		synchronized (this.dataset) {
-			if (active == 0) {
-				for (TimeSeries d : del) {
-					this.dataset.removeSeries(d);
-				}
-				if (del.size() > 0) {
-					this.chart.getXYPlot().setRenderer(new XYLineAndShapeRenderer(true, false));
-					XYLineAndShapeRenderer r = (XYLineAndShapeRenderer) this.chart.getXYPlot().getRendererForDataset(dataset);
-					r.setSeriesPaint(0, Color.BLACK);
-				}
+			for (TimeSeries d : del) {
+				this.dataset.removeSeries(d);
+			}
+			if (this.dataset.getSeriesCount() == 0) {
+				this.chart.getXYPlot().setRenderer(new XYLineAndShapeRenderer(true, false));
+				XYLineAndShapeRenderer r = (XYLineAndShapeRenderer) this.chart.getXYPlot().getRendererForDataset(dataset);
+				r.setSeriesPaint(0, Color.BLACK);
 			}
 		}
 	}
@@ -378,7 +376,7 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 			}
 			if (number > 0) {
 				if (stroke > 0) {
-					if(token){
+					if (token) {
 						r.setSeriesStroke(number, new BasicStroke(stroke, CAP_BUTT, JOIN_BEVEL, 1, new float[]{1.5f, .5f}, .5f));
 					} else {
 						r.setSeriesStroke(number, new BasicStroke(stroke, CAP_BUTT, JOIN_BEVEL, 1));
@@ -429,7 +427,7 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 			for (String resource : update.getResourceIdsList()) {
 				String label = update.getDescription().replaceAll(":.*", "") + " (" + update.getId().substring(0, 4) + ")";
 				updateDataPoints(update.getId() + ":" + resource, label, resource, start, end, update.getState(), update.getPriority(), update.getId().split("#").length > 1);
-				
+
 			}
 		}
 	}
