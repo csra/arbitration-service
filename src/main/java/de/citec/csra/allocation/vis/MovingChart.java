@@ -268,15 +268,17 @@ public class MovingChart extends ApplicationFrame implements ActionListener, Han
 		}
 
 		synchronized (this.dataset) {
+			if (active == 0) {
 			for (TimeSeries d : del) {
 				this.dataset.removeSeries(d);
 			}
-			if (this.dataset.getSeriesCount() == 0) {
+				if (del.size() > 0) {
 				this.chart.getXYPlot().setRenderer(new XYLineAndShapeRenderer(true, false));
 				XYLineAndShapeRenderer r = (XYLineAndShapeRenderer) this.chart.getXYPlot().getRendererForDataset(dataset);
 				r.setSeriesPaint(0, Color.BLACK);
 			}
 		}
+	}
 	}
 
 	/**
