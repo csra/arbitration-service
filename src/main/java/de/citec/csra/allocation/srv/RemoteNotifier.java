@@ -107,7 +107,7 @@ public class RemoteNotifier implements Runnable {
 //			wait for slot to begin
 			long wait;
 			Interval slot;
-			while ((slot = getSlot()) != null && ((wait = slot.getBegin().getTime()) - currentTimeInMicros()) > 0) {
+			while ((slot = getSlot()) != null && ((wait = (slot.getBegin().getTime() - currentTimeInMicros()))  > 0)) {
 				try {
 					synchronized (monitor) {
 						monitor.wait(wait / 1000, (int) ((wait % 1000) * 1000));
@@ -121,12 +121,12 @@ public class RemoteNotifier implements Runnable {
 					return;
 				}
 			}
-
+			
 			Allocations.getInstance().setState(id, ALLOCATED);
 			publish();
 
 //			wait for slot to end
-			while ((slot = getSlot()) != null && ((wait = slot.getEnd().getTime()) - currentTimeInMicros()) > 0) {
+			while ((slot = getSlot()) != null && ((wait = (slot.getEnd().getTime() - currentTimeInMicros()))  > 0)) {
 				try {
 					synchronized (monitor) {
 						monitor.wait(wait / 1000, (int) ((wait % 1000) * 1000));
